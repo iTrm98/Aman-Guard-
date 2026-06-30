@@ -1,16 +1,61 @@
-# React + Vite
+# AmanGuard — واجهة العميل وموظف البنك (Frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+واجهة React + Tailwind CSS لتطبيق **AmanGuard**: نظام وقاية استباقية من الاحتيال المالي. يتضمن واجهتين:
 
-Currently, two official plugins are available:
+- **واجهة العميل**: التحقق من مكالمات البنك، فحص الرسائل/الروابط المشبوهة بالذكاء الاصطناعي، أسئلة تحقق إلزامية، وزر تجميد طارئ للحساب.
+- **لوحة موظف البنك**: إحصائيات حية، وجدول الحالات النشطة مع مستوى الخطورة وإجراءات الموظف.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+هذا المشروع يغطي الجزء الأمامي (Frontend) فقط، وفق هيكلية المهام في مستند الـ MVP (CUST-001 إلى CUST-006, BANK-001, BANK-002).
 
-## React Compiler
+## التقنيات
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19 + Vite
+- Tailwind CSS v4
+- lucide-react للأيقونات
 
-## Expanding the ESLint configuration
+## الإعداد
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
+
+## الاتصال بالخادم (Backend)
+
+طبقة الخدمات في `src/api/fraudService.js` مبنية لتطابق نقاط النهاية المتوقعة من خادم Spring Boot:
+
+| Endpoint | الاستخدام |
+|---|---|
+| `GET /call-status` | التحقق من حالة الاتصال البنكي الرسمي (CUST-002) |
+| `POST /analyze` | تحليل النص/الرابط وإرجاع درجة الخطورة وأسئلة التحقق (CUST-003/004, BACK-SB-004) |
+| `POST /freeze` | تجميد الحساب طارئاً وإرجاع رقم البلاغ (CUST-006, BACK-SB-004) |
+| `GET /cases/active` | جلب إحصائيات وجدول الحالات الحية للوحة البنك (BANK-001/002, BACK-SB-004) |
+
+ضبط الرابط الأساسي للخادم عبر متغير البيئة `VITE_API_BASE_URL`.
+
+### وضع المحاكاة (Mock Mode)
+
+إلى حين جاهزية الخادم، تعمل جميع الاستدعاءات تلقائياً بواسطة بيانات وهمية (`src/api/mockData.js`) عندما تكون `VITE_USE_MOCKS=true` (الافتراضي)، أو عند فشل الاتصال الفعلي بالخادم. لتفعيل الاتصال الحقيقي بالكامل، عيّن `VITE_USE_MOCKS=false` في ملف `.env`.
+
+## البنية
+
+```
+src/
+  api/            طبقة الاتصال بالخادم + بيانات المحاكاة
+  components/
+    layout/       Navbar, Modal
+    customer/     Hero, CallVerification, ScamChecker, RiskReport
+    bank/         StatsCards, CasesTable
+  views/          CustomerView, BankView
+  App.jsx         إدارة الحالة العامة والتنقل بين الواجهتين
+```
+
+## أوامر متاحة
+
+```bash
+npm run dev       # بيئة التطوير
+npm run build     # بناء نسخة الإنتاج
+npm run lint      # فحص الكود
+npm run preview   # معاينة نسخة الإنتاج
+```

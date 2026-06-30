@@ -1,1 +1,51 @@
+@import url("https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap");
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Tajawal", sans-serif;
+
+  --color-brand-dark: #112233;
+  --color-brand-gold: #a37a53;
+  --color-brand-light: #f8f9fa;
+  --color-brand-red: #d32f2f;
+  --color-brand-green: #2e7d32;
+
+  --animate-fade-in: fadeIn 0.5s ease-out;
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+html,
+body {
+  font-family: var(--font-sans);
+  background-color: #f4f6f8;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-gold);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8a6543;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
