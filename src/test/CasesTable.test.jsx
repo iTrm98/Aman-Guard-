@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { renderWithApp } from "./test-utils";
 import CasesTable from "../components/bank/CasesTable";
 
 const cases = [
@@ -25,18 +26,18 @@ const cases = [
 
 describe("CasesTable", () => {
   it("renders a row for each case with its risk score", () => {
-    render(<CasesTable cases={cases} onRefresh={vi.fn()} />);
+    renderWithApp(<CasesTable cases={cases} onRefresh={vi.fn()} />);
 
     expect(screen.getByText("تركي السفياني")).toBeInTheDocument();
     expect(screen.getByText("نواف العتيبي")).toBeInTheDocument();
-    expect(screen.getByText("82")).toBeInTheDocument();
-    expect(screen.getByText("95")).toBeInTheDocument();
+    expect(screen.getByText(/82 —/)).toBeInTheDocument();
+    expect(screen.getByText(/95 —/)).toBeInTheDocument();
   });
 
   it("shows the staff confirmation button only for the highlighted case", () => {
-    render(<CasesTable cases={cases} onRefresh={vi.fn()} highlightId="FR-9020" />);
+    renderWithApp(<CasesTable cases={cases} onRefresh={vi.fn()} highlightId="FR-9020" />);
 
-    expect(screen.getByRole("button", { name: /تأكيد التجميد والاتصال/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /تأكيد التجميد والتواصل/ })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /مراجعة الحالة/ })).toHaveLength(1);
   });
 });

@@ -17,6 +17,8 @@ const T = {
   settings:        { ar: "الإعدادات",                    en: "Settings" },
   logout:          { ar: "تسجيل الخروج",                 en: "Sign Out" },
   premium_client:  { ar: "عميل مميز",                    en: "Premium Client" },
+  close_menu:      { ar: "إغلاق القائمة",                 en: "Close menu" },
+  open_menu:       { ar: "فتح القائمة",                   en: "Open menu" },
 
   // ── Topbar ───────────────────────────────────────────────────────────────
   topbar_customer_title: { ar: "بوابة الحماية الآمنة",                             en: "Secure Protection Portal" },

@@ -51,7 +51,7 @@ export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile 
           <button
             onClick={onCloseMobile}
             className="md:hidden"
-            aria-label={t("settings")}
+            aria-label={t("close_menu")}
             style={{ background:"#0a1620", border:"1px solid #1e2f42", borderRadius:8, padding:6, cursor:"pointer", color:"#8da0b3", flexShrink:0 }}
           >
             <X style={{ width:14, height:14 }} />

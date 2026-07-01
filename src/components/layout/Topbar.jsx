@@ -16,7 +16,7 @@ export default function Topbar({ view, onOpenMobileNav }) {
         <button
           onClick={onOpenMobileNav}
           className="md:hidden"
-          aria-label="menu"
+          aria-label={t("open_menu")}
           style={{ width:36, height:36, borderRadius:10, background:"var(--bg-subtle)", border:"1.5px solid var(--border)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--text-secondary)", flexShrink:0 }}
         >
           <Menu style={{ width:16, height:16 }} />
