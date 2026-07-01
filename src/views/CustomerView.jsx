@@ -1,35 +1,25 @@
 import { useState } from "react";
-import AccountCard from "../components/customer/AccountCard";
+import AccountCard    from "../components/customer/AccountCard";
 import CallVerification from "../components/customer/CallVerification";
-import ScamChecker from "../components/customer/ScamChecker";
-import RiskReport from "../components/customer/RiskReport";
+import ScamChecker    from "../components/customer/ScamChecker";
+import RiskReport     from "../components/customer/RiskReport";
+import { useApp }     from "../context/useApp";
 
-export default function CustomerView({ onShowModal, onFreezeRequest }) {
+export default function CustomerView({ onFreezeRequest }) {
+  const { t, showModal } = useApp();
   const [analysisResult, setAnalysisResult] = useState(null);
 
-  function handleValidationError() {
-    onShowModal({
-      title: "حقل مطلوب",
-      message: "الرجاء لصق نص الرسالة أو الرابط المراد فحصه في الحقل أولاً.",
-      type: "info",
-    });
-  }
-
   return (
-    <div className="space-y-5 animate-fade-in">
-      {/* Account card spans full width */}
+    <div style={{ display:"flex", flexDirection:"column", gap:18 }} className="animate-fade-in">
       <AccountCard />
-
-      {/* Two tool cards side by side */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
         <CallVerification />
-        <ScamChecker onResult={setAnalysisResult} onValidationError={handleValidationError} />
+        <ScamChecker
+          onResult={setAnalysisResult}
+          onValidationError={() => showModal({ title:t("field_required_title"), message:t("field_required_msg"), type:"info" })}
+        />
       </div>
-
-      {/* AI report appears below when ready */}
-      {analysisResult && (
-        <RiskReport result={analysisResult} onFreezeRequest={onFreezeRequest} />
-      )}
+      {analysisResult && <RiskReport result={analysisResult} onFreezeRequest={onFreezeRequest} />}
     </div>
   );
 }

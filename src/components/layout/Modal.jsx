@@ -1,80 +1,65 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import { useApp } from "../../context/AppContext";
 
 const CONFIG = {
-  danger:  { Icon: AlertTriangle, accent: "#c0392b", bg: "#fdf0ef", iconBg: "#fde8e6" },
-  success: { Icon: CheckCircle2,  accent: "#1a7a4a", bg: "#eaf7ee", iconBg: "#d4f0de" },
-  info:    { Icon: Info,          accent: "#1a5a9a", bg: "#eaf3fb", iconBg: "#d4e8f7" },
+  danger:  { Icon: AlertTriangle, accent: "var(--red)",   iconBg: "rgba(192,57,43,0.1)"  },
+  success: { Icon: CheckCircle2,  accent: "var(--green)",  iconBg: "rgba(26,122,74,0.1)"  },
+  info:    { Icon: Info,          accent: "#1a5a9a",        iconBg: "rgba(26,90,154,0.1)"  },
 };
 
-export default function Modal({
-  open, title, message, type = "info",
-  showCancel = false, confirmText = "حسناً",
-  onConfirm, onClose,
-}) {
+export default function Modal({ open, title, message, type = "info", showCancel = false, confirmText, onConfirm, onClose }) {
+  const { t } = useApp();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      const t = setTimeout(() => setVisible(true), 10);
-      return () => clearTimeout(t);
-    }
+    if (open) { const id = setTimeout(() => setVisible(true), 10); return () => clearTimeout(id); }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(false);
   }, [open]);
 
   if (!open) return null;
-
   const { Icon, accent, iconBg } = CONFIG[type] ?? CONFIG.info;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center transition-all duration-300"
-      style={{ background: visible ? "rgba(13,27,42,0.65)" : "rgba(13,27,42,0)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+      style={{
+        position:"fixed",inset:0,zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",
+        background: visible ? "rgba(13,27,42,0.65)" : "rgba(13,27,42,0)",
+        backdropFilter:"blur(4px)", transition:"background 0.3s",
+      }}
     >
       <div
-        className="relative w-11/12 max-w-md rounded-2xl overflow-hidden transition-all duration-300"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
-          boxShadow: "0 24px 64px rgba(13,27,42,0.22)",
-          transform: visible ? "scale(1) translateY(0)" : "scale(0.96) translateY(12px)",
-          opacity: visible ? 1 : 0,
+          width:"min(420px,94vw)", background:"var(--bg-surface)",
+          borderRadius:20, overflow:"hidden",
+          boxShadow:"var(--shadow-modal)", border:"1px solid var(--border)",
+          transform: visible ? "scale(1) translateY(0)" : "scale(0.95) translateY(14px)",
+          opacity: visible ? 1 : 0, transition:"transform 0.3s ease, opacity 0.3s ease",
         }}
       >
-        {/* Top accent bar */}
-        <div style={{ height: 4, background: accent }} />
-
-        <div className="p-6">
-          {/* Close */}
-          <button
-            onClick={onClose}
-            className="absolute top-5 left-5 rounded-lg p-1 transition"
-            style={{ color: "#8090a0" }}
-          >
-            <X className="w-4 h-4" />
+        <div style={{ height:4, background:accent }} />
+        <div style={{ padding:24 }}>
+          <button onClick={onClose} style={{ position:"absolute",top:16,insetInlineEnd:16, background:"var(--bg-subtle)", border:"1px solid var(--border)", borderRadius:8, padding:6, cursor:"pointer", color:"var(--text-muted)" }}>
+            <X style={{ width:14,height:14 }} />
           </button>
-
-          {/* Icon */}
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: iconBg }}
-          >
-            <Icon className="w-7 h-7" style={{ color: accent }} />
+          <div style={{ width:56,height:56,borderRadius:16,background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px" }}>
+            <Icon style={{ width:28,height:28,color:accent }} />
           </div>
-
-          <h3 className="text-xl font-black text-center mb-2" style={{ color: "#0d1b2a" }}>{title}</h3>
-          <p className="text-sm text-center leading-relaxed mb-6" style={{ color: "#5a6a7a" }}>{message}</p>
-
-          <div className="flex gap-3">
+          <p style={{ fontWeight:900,fontSize:18,textAlign:"center",color:"var(--text-primary)",marginBottom:8 }}>{title}</p>
+          <p style={{ fontSize:14,textAlign:"center",lineHeight:1.7,color:"var(--text-secondary)",marginBottom:24 }}>{message}</p>
+          <div style={{ display:"flex",gap:10 }}>
             {showCancel && (
-              <button onClick={onClose} className="btn-ghost flex-1">إلغاء</button>
+              <button onClick={onClose} className="btn-ghost" style={{ flex:1 }}>{t("cancel")}</button>
             )}
             <button
               onClick={() => { onConfirm?.(); onClose?.(); }}
-              className={`flex-1 ${type === "danger" ? "btn-danger" : "btn-primary"}`}
-              style={type !== "danger" ? { background: accent } : {}}
+              className={type === "danger" ? "btn-danger" : "btn-primary"}
+              style={{ flex:1, background: type !== "danger" ? accent : undefined }}
             >
-              {confirmText}
+              {confirmText ?? t("ok")}
             </button>
           </div>
         </div>

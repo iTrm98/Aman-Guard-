@@ -1,101 +1,80 @@
 import { useState } from "react";
 import { Search, RefreshCw, Download, ChevronDown, ChevronUp, Skull, AlertTriangle, AlertCircle } from "lucide-react";
+import { useApp } from "../../context/AppContext";
 
-const RISK = {
-  critical: { label: "حرج",   cls: "risk-critical", Icon: Skull },
-  high:     { label: "عالٍ",  cls: "risk-high",     Icon: AlertTriangle },
-  medium:   { label: "متوسط", cls: "risk-medium",   Icon: AlertCircle },
-};
+export default function CasesTable({ cases, onRefresh, highlightId, onExport, onSelectCase }) {
+  const { t } = useApp();
+  const [query,  setQuery]   = useState("");
+  const [sortBy, setSortBy]  = useState("riskScore");
+  const [sortDir,setSortDir] = useState("desc");
 
-const STATUS = {
-  active:               { label: "نشط",           cls: "status-active"  },
-  partially_restricted: { label: "مقيد جزئياً",  cls: "status-partial" },
-  frozen:               { label: "مجمد",          cls: "status-frozen"  },
-};
-
-export default function CasesTable({ cases, onRefresh, highlightId }) {
-  const [query,  setQuery]  = useState("");
-  const [sortBy, setSortBy] = useState("riskScore");
-  const [sortDir,setSortDir]= useState("desc");
+  const RISK = {
+    critical: { cls:"risk-critical", Icon:Skull         },
+    high:     { cls:"risk-high",     Icon:AlertTriangle  },
+    medium:   { cls:"risk-medium",   Icon:AlertCircle    },
+  };
+  const STATUS = {
+    active:               { cls:"status-active"  },
+    partially_restricted: { cls:"status-partial" },
+    frozen:               { cls:"status-frozen"  },
+  };
 
   const filtered = cases
-    .filter((c) =>
-      !query ||
-      c.id.toLowerCase().includes(query.toLowerCase()) ||
-      c.customerName.includes(query)
-    )
+    .filter(c => !query || c.id.toLowerCase().includes(query.toLowerCase()) || c.customerName.includes(query))
     .sort((a, b) => {
       const v = sortDir === "asc" ? 1 : -1;
-      if (sortBy === "riskScore") return (a.riskScore - b.riskScore) * v;
-      return 0;
+      return sortBy === "riskScore" ? (a.riskScore - b.riskScore) * v : 0;
     });
-
-  function toggleSort(col) {
-    if (sortBy === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortBy(col); setSortDir("desc"); }
-  }
 
   const SortIcon = sortDir === "asc" ? ChevronUp : ChevronDown;
 
+  const COLS = [
+    { label: t("col_report"), col: null        },
+    { label: t("col_client"), col: null        },
+    { label: t("col_pattern"),col: null        },
+    { label: t("col_risk"),   col: "riskScore" },
+    { label: t("col_account"),col: null        },
+    { label: t("col_action"), col: null        },
+  ];
+
   return (
-    <div className="card overflow-hidden">
-      {/* Table header / controls */}
-      <div
-        className="flex items-center justify-between px-5 py-3.5"
-        style={{ borderBottom: "1px solid #edf0f4", background: "#fafbfc" }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="live-dot" />
-          <p className="font-black text-sm" style={{ color: "#0d1b2a" }}>سجل الحالات الحية</p>
-          <span
-            className="text-xs px-2 py-0.5 rounded-full font-bold"
-            style={{ background: "#edf0f4", color: "#5a6a7a" }}
-          >
-            {filtered.length} حالة
+    <div className="card" style={{ overflow:"hidden" }}>
+      {/* Controls */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 18px", borderBottom:"1px solid var(--border-subtle)", background:"var(--bg-subtle)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span className="live-dot" />
+          <p style={{ fontWeight:900, fontSize:14, color:"var(--text-primary)" }}>{t("cases_title")}</p>
+          <span style={{ fontSize:11, padding:"2px 8px", borderRadius:99, background:"var(--border-subtle)", color:"var(--text-muted)", fontWeight:700 }}>
+            {filtered.length} {t("cases_count")}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "#a0aab4" }} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="بحث..."
-              className="input-field pr-8 text-xs"
-              style={{ width: 160, paddingTop: 6, paddingBottom: 6 }}
-            />
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ position:"relative" }}>
+            <Search style={{ width:13, height:13, position:"absolute", insetInlineEnd:10, top:"50%", transform:"translateY(-50%)", color:"var(--text-muted)", pointerEvents:"none" }} />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t("search_ph")} className="input-field"
+              style={{ width:190, paddingTop:6, paddingBottom:6, paddingInlineEnd:32, fontSize:13 }} />
           </div>
-          <button onClick={onRefresh} className="btn-ghost" style={{ padding: "6px 10px" }}>
-            <RefreshCw className="w-3.5 h-3.5" />
+          <button onClick={onRefresh} className="btn-ghost" style={{ padding:"6px 10px" }} title="Refresh">
+            <RefreshCw style={{ width:14, height:14 }} />
           </button>
-          <button className="btn-ghost" style={{ padding: "6px 10px" }}>
-            <Download className="w-3.5 h-3.5" />
-            <span className="text-xs">تصدير</span>
+          <button onClick={onExport} className="btn-ghost" style={{ padding:"6px 12px" }}>
+            <Download style={{ width:14, height:14 }} />
+            <span style={{ fontSize:12 }}>{t("export")}</span>
           </button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-right text-sm">
+      <div style={{ overflowX:"auto" }}>
+        <table style={{ width:"100%", textAlign:"right", fontSize:13, borderCollapse:"collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid #edf0f4" }}>
-              {[
-                { label: "رقم البلاغ",      col: null },
-                { label: "العميل",           col: null },
-                { label: "نمط الاحتيال",    col: null },
-                { label: "درجة الخطر",       col: "riskScore" },
-                { label: "الحساب",           col: null },
-                { label: "إجراء",            col: null },
-              ].map(({ label, col }) => (
-                <th
-                  key={label}
-                  className="px-5 py-3 font-bold text-xs uppercase tracking-wide cursor-pointer select-none"
-                  style={{ color: "#8090a0", background: "#fafbfc" }}
-                  onClick={() => col && toggleSort(col)}
-                >
-                  <span className="flex items-center gap-1 justify-end">
-                    {col === sortBy && <SortIcon className="w-3 h-3" />}
+            <tr style={{ borderBottom:"1px solid var(--border-subtle)" }}>
+              {COLS.map(({ label, col }) => (
+                <th key={label}
+                  onClick={() => col && (sortBy === col ? setSortDir(d => d === "asc" ? "desc" : "asc") : (setSortBy(col), setSortDir("desc")))}
+                  style={{ padding:"10px 18px", fontWeight:700, fontSize:11, textTransform:"uppercase", letterSpacing:"0.06em", color:"var(--text-muted)", background:"var(--bg-subtle)", cursor: col ? "pointer" : "default", userSelect:"none", whiteSpace:"nowrap" }}>
+                  <span style={{ display:"flex", alignItems:"center", gap:4, justifyContent:"flex-end" }}>
+                    {col === sortBy && <SortIcon style={{ width:11, height:11 }} />}
                     {label}
                   </span>
                 </th>
@@ -104,59 +83,44 @@ export default function CasesTable({ cases, onRefresh, highlightId }) {
           </thead>
           <tbody>
             {filtered.map((c, i) => {
-              const risk    = RISK[c.riskLevel]   ?? RISK.medium;
-              const status  = STATUS[c.accountStatus] ?? STATUS.active;
+              const risk   = RISK[c.riskLevel]      ?? RISK.medium;
+              const status = STATUS[c.accountStatus] ?? STATUS.active;
               const RiskIcon = risk.Icon;
-              const isNew   = c.id === highlightId;
-
+              const isNew  = c.id === highlightId;
               return (
-                <tr
-                  key={c.id}
-                  className="transition-colors"
-                  style={{
-                    borderBottom: "1px solid #edf0f4",
-                    background: isNew
-                      ? "rgba(192,57,43,0.04)"
-                      : i % 2 === 0 ? "#fff" : "#fafbfc",
-                  }}
-                >
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
+                <tr key={c.id} style={{ borderBottom:"1px solid var(--border-subtle)", background: isNew ? "rgba(192,57,43,0.04)" : i % 2 === 0 ? "var(--table-even)" : "var(--table-odd)", transition:"background 0.15s" }}>
+                  <td style={{ padding:"13px 18px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {isNew && <span className="live-dot" />}
                       <div>
-                        <p className="font-black text-xs" style={{ color: "#0d1b2a" }}>#{c.id}</p>
-                        <p
-                          className="text-xs"
-                          style={{ color: isNew ? "#c0392b" : "#a0aab4", fontWeight: isNew ? 700 : 400 }}
-                        >
-                          {c.timeAgo}
-                        </p>
+                        <p style={{ fontWeight:900, fontSize:12, color:"var(--text-primary)" }}>#{c.id}</p>
+                        <p style={{ fontSize:11, color: isNew ? "var(--red)" : "var(--text-muted)", fontWeight: isNew ? 700 : 400 }}>{c.timeAgo}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4">
-                    <p className="font-bold text-sm" style={{ color: "#1a2533" }}>{c.customerName}</p>
+                  <td style={{ padding:"13px 18px" }}>
+                    <p style={{ fontWeight:700, color:"var(--text-primary)" }}>{c.customerName}</p>
                   </td>
-                  <td className="px-5 py-4">
-                    <p className="text-sm" style={{ color: "#5a6a7a", maxWidth: 220 }}>{c.fraudPattern}</p>
+                  <td style={{ padding:"13px 18px" }}>
+                    <p style={{ color:"var(--text-secondary)", maxWidth:200 }}>{c.fraudPattern}</p>
                   </td>
-                  <td className="px-5 py-4">
+                  <td style={{ padding:"13px 18px" }}>
                     <span className={`risk-badge ${risk.cls}`}>
-                      <RiskIcon style={{ width: 11, height: 11 }} />
-                      {c.riskScore} — {risk.label}
+                      <RiskIcon style={{ width:11, height:11 }} />
+                      {c.riskScore} — {t(`risk_${c.riskLevel}`)}
                     </span>
                   </td>
-                  <td className="px-5 py-4">
-                    <span className={`status-badge ${status.cls}`}>{status.label}</span>
+                  <td style={{ padding:"13px 18px" }}>
+                    <span className={`status-badge ${status.cls}`}>{t(`status_${c.accountStatus}`) || c.accountStatus}</span>
                   </td>
-                  <td className="px-5 py-4 text-center">
+                  <td style={{ padding:"13px 18px", textAlign:"center" }}>
                     {isNew ? (
-                      <button className="btn-primary text-xs" style={{ padding: "6px 14px" }}>
-                        تأكيد التجميد والاتصال
+                      <button onClick={() => onSelectCase?.(c)} className="btn-primary" style={{ padding:"6px 14px", fontSize:12 }}>
+                        {t("action_confirm")}
                       </button>
                     ) : (
-                      <button className="btn-ghost text-xs" style={{ padding: "6px 14px", color: "#1a5a9a", borderColor: "#a8c9ee" }}>
-                        مراجعة الحالة
+                      <button onClick={() => onSelectCase?.(c)} className="btn-ghost" style={{ padding:"6px 14px", fontSize:12, color:"#1a5a9a", borderColor:"rgba(26,90,154,0.3)" }}>
+                        {t("action_review")}
                       </button>
                     )}
                   </td>
@@ -164,11 +128,7 @@ export default function CasesTable({ cases, onRefresh, highlightId }) {
               );
             })}
             {filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="py-10 text-center text-sm" style={{ color: "#a0aab4" }}>
-                  لا توجد حالات تطابق البحث
-                </td>
-              </tr>
+              <tr><td colSpan={6} style={{ padding:40, textAlign:"center", color:"var(--text-muted)", fontSize:14 }}>{t("no_cases")}</td></tr>
             )}
           </tbody>
         </table>

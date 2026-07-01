@@ -1,174 +1,107 @@
 import { useState } from "react";
 import { AlertTriangle, XCircle, Snowflake, CheckSquare, Square, ChevronDown, ChevronUp } from "lucide-react";
+import { useApp } from "../../context/AppContext";
 
-/* SVG risk gauge */
 function RiskGauge({ score }) {
-  const r = 44;
-  const circumference = Math.PI * r; // half circle
-  const fraction = score / 100;
-  const dashOffset = circumference * (1 - fraction);
-
-  const color = score >= 80 ? "#c0392b" : score >= 50 ? "#d35400" : "#c49a5a";
-
+  const r = 44, circumference = Math.PI * r;
+  const dashOffset = circumference * (1 - score / 100);
+  const color = score >= 80 ? "var(--red)" : score >= 50 ? "#d35400" : "var(--gold)";
   return (
-    <svg width={112} height={70} viewBox="0 0 112 70" fill="none">
-      {/* Track */}
-      <path
-        d={`M 12 56 A ${r} ${r} 0 0 1 100 56`}
-        stroke="#edf0f4" strokeWidth={8} strokeLinecap="round" fill="none"
-      />
-      {/* Value */}
-      <path
-        d={`M 12 56 A ${r} ${r} 0 0 1 100 56`}
-        stroke={color} strokeWidth={8} strokeLinecap="round" fill="none"
-        strokeDasharray={circumference}
-        strokeDashoffset={dashOffset}
-        style={{ transition: "stroke-dashoffset 0.8s ease" }}
-      />
-      {/* Score text */}
-      <text x={56} y={52} textAnchor="middle" fontSize={22} fontWeight={900} fill={color} fontFamily="Tajawal">
-        {score}
-      </text>
-      <text x={56} y={64} textAnchor="middle" fontSize={9} fill="#8090a0" fontFamily="Tajawal">
-        / ١٠٠
-      </text>
+    <svg width={112} height={72} viewBox="0 0 112 72" fill="none">
+      <path d={`M 12 58 A ${r} ${r} 0 0 1 100 58`} stroke="var(--border)" strokeWidth={8} strokeLinecap="round" fill="none" />
+      <path d={`M 12 58 A ${r} ${r} 0 0 1 100 58`} stroke={color} strokeWidth={8} strokeLinecap="round" fill="none"
+        strokeDasharray={circumference} strokeDashoffset={dashOffset}
+        style={{ transition:"stroke-dashoffset 0.8s ease" }} />
+      <text x={56} y={54} textAnchor="middle" fontSize={22} fontWeight={900} fill={color} fontFamily="Tajawal,Inter,sans-serif">{score}</text>
+      <text x={56} y={66} textAnchor="middle" fontSize={9} fill="var(--text-muted)" fontFamily="Tajawal,Inter,sans-serif">/ 100</text>
     </svg>
   );
 }
 
 export default function RiskReport({ result, onFreezeRequest }) {
+  const { t } = useApp();
   const [answers,  setAnswers]  = useState({});
   const [expanded, setExpanded] = useState(true);
-
   if (!result) return null;
 
   const score = result.riskScore;
-  const isCritical = score >= 80;
-
-  const riskColor = isCritical ? "#c0392b" : score >= 50 ? "#d35400" : "#c49a5a";
-  const riskBg    = isCritical ? "#fdf0ef" : score >= 50 ? "#fef5ec" : "#fdfbe8";
-  const riskBorder= isCritical ? "#f5c6c2" : score >= 50 ? "#fad7b0" : "#f4e57a";
+  const riskColor  = score >= 80 ? "var(--red)" : score >= 50 ? "#d35400" : "var(--gold)";
+  const riskBg     = score >= 80 ? "rgba(192,57,43,0.08)"  : score >= 50 ? "rgba(211,84,0,0.08)"  : "rgba(196,154,90,0.08)";
+  const riskBorder = score >= 80 ? "rgba(192,57,43,0.25)"  : score >= 50 ? "rgba(211,84,0,0.25)"  : "rgba(196,154,90,0.25)";
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden animate-slide-up"
-      style={{ border: "1.5px solid " + riskBorder, background: "#fff" }}
-    >
-      {/* Header bar */}
-      <div
-        className="flex items-center justify-between px-5 py-4"
-        style={{ background: riskBg, borderBottom: "1px solid " + riskBorder }}
-      >
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5" style={{ color: riskColor }} />
+    <div style={{ borderRadius:16, overflow:"hidden", border:`1.5px solid ${riskBorder}`, background:"var(--bg-surface)" }} className="animate-slide-up">
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 20px", background:riskBg, borderBottom:`1px solid ${riskBorder}` }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <AlertTriangle style={{ width:18, height:18, color:riskColor }} />
           <div>
-            <p className="font-black text-base" style={{ color: riskColor }}>تقرير تحليل المخاطر</p>
-            <p className="text-xs mt-0.5" style={{ color: "#8090a0" }}>
-              صدر للتو • محرك الذكاء الاصطناعي v2.1
-            </p>
+            <p style={{ fontWeight:900, fontSize:15, color:riskColor }}>{t("report_title")}</p>
+            <p style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{t("report_issued")}</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-center">
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ textAlign:"center" }}>
             <RiskGauge score={score} />
-            <p className="text-xs font-black -mt-1" style={{ color: riskColor }}>{result.riskLabel}</p>
+            <p style={{ fontSize:11, fontWeight:900, color:riskColor, marginTop:-4 }}>{result.riskLabel}</p>
           </div>
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="p-1.5 rounded-lg transition"
-            style={{ background: "rgba(0,0,0,0.05)" }}
-          >
-            {expanded
-              ? <ChevronUp   className="w-4 h-4" style={{ color: "#8090a0" }} />
-              : <ChevronDown className="w-4 h-4" style={{ color: "#8090a0" }} />
-            }
+          <button onClick={() => setExpanded(v => !v)} style={{ padding:7, borderRadius:8, background:"rgba(0,0,0,0.08)", border:"none", cursor:"pointer", color:"var(--text-muted)" }}>
+            {expanded ? <ChevronUp style={{ width:16, height:16 }} /> : <ChevronDown style={{ width:16, height:16 }} />}
           </button>
         </div>
       </div>
 
       {expanded && (
-        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, padding:20 }}>
           {/* Findings */}
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "#8090a0" }}>
-              مؤشرات الاحتيال المكتشفة
-            </p>
-            <div className="space-y-2">
+            <p style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:12 }}>{t("report_findings")}</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {result.findings.map((f) => (
-                <div
-                  key={f.title}
-                  className="flex gap-3 p-3 rounded-xl"
-                  style={{ background: "#fdf0ef", border: "1px solid #f5c6c2" }}
-                >
-                  <XCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#c0392b" }} />
+                <div key={f.title} style={{ display:"flex", gap:10, padding:12, borderRadius:10, background:"rgba(192,57,43,0.06)", border:"1px solid rgba(192,57,43,0.15)" }}>
+                  <XCircle style={{ width:15, height:15, color:"var(--red)", flexShrink:0, marginTop:1 }} />
                   <div>
-                    <p className="text-sm font-bold" style={{ color: "#7a2020" }}>{f.title}</p>
-                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#9a4040" }}>{f.detail}</p>
+                    <p style={{ fontSize:13, fontWeight:700, color:"var(--red)" }}>{f.title}</p>
+                    <p style={{ fontSize:12, lineHeight:1.5, color:"var(--text-secondary)", marginTop:2 }}>{f.detail}</p>
                   </div>
                 </div>
               ))}
             </div>
-
-            {/* Recommendation */}
-            <div
-              className="mt-3 flex gap-3 p-3 rounded-xl"
-              style={{ background: "#eaf3fb", border: "1px solid #a8c9ee" }}
-            >
-              <div className="w-1 shrink-0 rounded-full self-stretch" style={{ background: "#1a5a9a" }} />
+            <div style={{ marginTop:12, display:"flex", gap:10, padding:12, borderRadius:10, background:"rgba(26,90,154,0.07)", borderInlineStart:`3px solid #1a5a9a` }}>
               <div>
-                <p className="text-xs font-bold mb-0.5" style={{ color: "#1a5a9a" }}>توصية النظام</p>
-                <p className="text-xs leading-relaxed" style={{ color: "#2a4a6a" }}>{result.recommendation}</p>
+                <p style={{ fontSize:12, fontWeight:700, color:"#1a5a9a", marginBottom:3 }}>{t("report_recommendation")}</p>
+                <p style={{ fontSize:12, lineHeight:1.6, color:"var(--text-secondary)" }}>{result.recommendation}</p>
               </div>
             </div>
           </div>
 
-          {/* Interruption questions + freeze */}
-          <div className="flex flex-col gap-4">
-            <div
-              className="rounded-xl p-4"
-              style={{ background: "#f8f9fb", border: "1px solid #e1e5eb" }}
-            >
-              <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "#8090a0" }}>
-                أسئلة تحقق إلزامية
-              </p>
-              <div className="space-y-3">
+          {/* Questions + freeze */}
+          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            <div style={{ padding:16, borderRadius:12, background:"var(--bg-subtle)", border:"1px solid var(--border)" }}>
+              <p style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:12 }}>{t("report_questions")}</p>
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {result.interruptionQuestions.map((q) => {
                   const checked = !!answers[q.id];
                   return (
-                    <label key={q.id} className="flex items-start gap-3 cursor-pointer group">
-                      <button
-                        onClick={() => setAnswers((p) => ({ ...p, [q.id]: !p[q.id] }))}
-                        className="mt-0.5 shrink-0 transition"
-                      >
+                    <label key={q.id} style={{ display:"flex", alignItems:"flex-start", gap:10, cursor:"pointer" }}>
+                      <button onClick={() => setAnswers(p => ({ ...p, [q.id]: !p[q.id] }))} style={{ background:"none", border:"none", cursor:"pointer", padding:0, flexShrink:0, marginTop:1 }}>
                         {checked
-                          ? <CheckSquare className="w-5 h-5" style={{ color: "#c0392b" }} />
-                          : <Square      className="w-5 h-5" style={{ color: "#c0c8d2" }} />
+                          ? <CheckSquare style={{ width:18, height:18, color:"var(--red)" }} />
+                          : <Square      style={{ width:18, height:18, color:"var(--border)" }} />
                         }
                       </button>
-                      <span
-                        className="text-sm leading-relaxed transition"
-                        style={{ color: checked ? "#c0392b" : "#3a4a5a", fontWeight: checked ? 700 : 400 }}
-                      >
-                        {q.text}
-                      </span>
+                      <span style={{ fontSize:13, lineHeight:1.5, color: checked ? "var(--red)" : "var(--text-primary)", fontWeight: checked ? 700 : 400 }}>{q.text}</span>
                     </label>
                   );
                 })}
               </div>
             </div>
 
-            {/* Freeze button */}
-            <button
-              onClick={() => onFreezeRequest?.(result.caseId)}
-              className="btn-danger w-full py-3.5"
-              style={{ borderRadius: 12 }}
-            >
-              <Snowflake className="w-5 h-5" />
-              <span className="text-base">تجميد طارئ للحساب</span>
+            <button onClick={() => onFreezeRequest?.(result.caseId)} className="btn-danger" style={{ width:"100%", padding:"13px 16px", borderRadius:12, fontSize:15 }}>
+              <Snowflake style={{ width:18, height:18 }} />
+              {t("freeze_btn")}
             </button>
-            <p className="text-xs text-center" style={{ color: "#a0aab4" }}>
-              يُوقف جميع الحوالات الصادرة فوراً ويُرسل بلاغاً لفريق الأمن المالي.
-            </p>
+            <p style={{ fontSize:11, textAlign:"center", color:"var(--text-muted)", lineHeight:1.5 }}>{t("freeze_hint")}</p>
           </div>
         </div>
       )}

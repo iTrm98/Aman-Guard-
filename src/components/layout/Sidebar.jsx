@@ -1,102 +1,97 @@
-import {
-  ShieldCheck,
-  LayoutDashboard,
-  Bell,
-  Settings,
-  LogOut,
-  ChevronLeft,
-} from "lucide-react";
-
-const NAV = [
-  { id: "customer", label: "بوابة العميل الآمنة", Icon: ShieldCheck },
-  { id: "bank",     label: "لوحة عمليات الأمن",   Icon: LayoutDashboard },
-];
-
-const BOTTOM_ITEMS = [
-  { Icon: Bell,     label: "الإشعارات" },
-  { Icon: Settings, label: "الإعدادات" },
-  { Icon: LogOut,   label: "تسجيل الخروج" },
-];
+import { ShieldCheck, LayoutDashboard, Bell, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { useApp } from "../../context/AppContext";
 
 export default function Sidebar({ view, onSwitchView }) {
+  const { t, lang, unreadCount, openPanel, showModal } = useApp();
+
+  const NAV = [
+    { id:"customer", labelKey:"nav_customer", Icon:ShieldCheck },
+    { id:"bank",     labelKey:"nav_bank",     Icon:LayoutDashboard },
+  ];
+
+  const ChevronActive = lang === "ar" ? ChevronLeft : ChevronRight;
+
+  function handleLogout() {
+    showModal({
+      title: t("logout_title"), message: t("logout_msg"),
+      type:"danger", showCancel:true, confirmText: t("logout_btn"),
+      onConfirm: () => {},
+    });
+  }
+
   return (
-    <aside
-      className="flex flex-col shrink-0 h-full"
-      style={{ width: 230, background: "#101e2e", borderLeft: "1px solid #1e2f42" }}
-    >
+    <aside style={{ width:230, background:"#101e2e", borderInlineStart:"1px solid #1e2f42", display:"flex", flexDirection:"column", height:"100%", flexShrink:0 }}>
       {/* Logo */}
-      <div className="px-5 pt-6 pb-5" style={{ borderBottom: "1px solid #1e2f42" }}>
-        <div className="flex items-center gap-3">
-          <div
-            className="flex items-center justify-center rounded-xl shrink-0"
-            style={{ width: 40, height: 40, background: "linear-gradient(135deg,#c49a5a,#e8c27a)" }}
-          >
-            <ShieldCheck className="w-5 h-5 text-white" />
+      <div style={{ padding:"20px 20px 18px", borderBottom:"1px solid #1e2f42" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#c49a5a,#e8c27a)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <ShieldCheck style={{ width:20, height:20, color:"#fff" }} />
           </div>
           <div>
-            <p className="text-white font-black text-lg leading-none tracking-wide">
-              Aman<span style={{ color: "#c49a5a" }}>Guard</span>
+            <p style={{ color:"#fff", fontWeight:900, fontSize:18, lineHeight:1, letterSpacing:"0.02em" }}>
+              Aman<span style={{ color:"#c49a5a" }}>Guard</span>
             </p>
-            <p className="text-xs mt-0.5" style={{ color: "#4a6070" }}>
-              Financial Fraud Intelligence
-            </p>
+            <p style={{ color:"#304050", fontSize:11, marginTop:3 }}>{t("brand_sub")}</p>
           </div>
         </div>
       </div>
 
-      {/* Section label */}
-      <div className="px-5 pt-5 pb-2">
-        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#304050" }}>
-          Navigation
+      {/* Nav label */}
+      <div style={{ padding:"18px 20px 8px" }}>
+        <p style={{ fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.1em", color:"#304050" }}>
+          {t("nav_label")}
         </p>
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 px-3 space-y-1">
-        {NAV.map(({ id, label, Icon }) => (
+      <nav style={{ flex:1, padding:"0 12px" }}>
+        {NAV.map(({ id, labelKey, Icon }) => (
           <button
             key={id}
             onClick={() => onSwitchView(id)}
-            className={`sidebar-item w-full text-right${view === id ? " active" : ""}`}
+            className={`sidebar-item${view === id ? " active" : ""}`}
           >
-            <Icon className="w-4 h-4 shrink-0" />
-            <span>{label}</span>
-            {view === id && <ChevronLeft className="w-3 h-3 mr-auto shrink-0" style={{ color: "#c49a5a" }} />}
+            <Icon style={{ width:16, height:16, flexShrink:0 }} />
+            <span style={{ flex:1 }}>{t(labelKey)}</span>
+            {view === id && <ChevronActive style={{ width:12, height:12, color:"#c49a5a", flexShrink:0 }} />}
           </button>
         ))}
 
         {/* Demo hint */}
-        <div
-          className="mx-1 mt-4 rounded-xl p-3 text-xs leading-relaxed"
-          style={{ background: "#0a1620", border: "1px solid #1e2f42", color: "#4a6070" }}
-        >
-          <span style={{ color: "#c49a5a" }} className="font-bold">نمط العرض التجريبي</span>
-          <br />استخدم التبديل أعلاه للتنقل بين واجهتي العميل والبنك لأغراض العرض.
+        <div style={{ margin:"14px 4px 0", borderRadius:12, padding:12, background:"#0a1620", border:"1px solid #1e2f42", fontSize:12, lineHeight:1.6, color:"#4a6070" }}>
+          <span style={{ color:"#c49a5a", fontWeight:700 }}>{t("demo_mode")}</span>
+          <br />{t("demo_hint")}
         </div>
       </nav>
 
       {/* Bottom */}
-      <div className="px-3 pb-5" style={{ borderTop: "1px solid #1e2f42", paddingTop: 12, marginTop: 8 }}>
-        {BOTTOM_ITEMS.map(({ Icon, label }) => (
-          <button key={label} className="sidebar-item w-full text-right">
-            <Icon className="w-4 h-4 shrink-0" />
-            <span>{label}</span>
-          </button>
-        ))}
+      <div style={{ padding:"12px 12px 20px", borderTop:"1px solid #1e2f42" }}>
+        <button className="sidebar-item" onClick={() => openPanel("notifications")}>
+          <Bell style={{ width:16, height:16, flexShrink:0 }} />
+          <span style={{ flex:1 }}>{t("notifications")}</span>
+          {unreadCount > 0 && (
+            <span style={{ background:"#c0392b", color:"#fff", fontSize:10, fontWeight:700, borderRadius:99, padding:"1px 6px", flexShrink:0 }}>
+              {unreadCount}
+            </span>
+          )}
+        </button>
+        <button className="sidebar-item" onClick={() => openPanel("settings")}>
+          <Settings style={{ width:16, height:16, flexShrink:0 }} />
+          <span style={{ flex:1 }}>{t("settings")}</span>
+        </button>
+        <button className="sidebar-item" onClick={handleLogout} style={{ color:"#c0392b" }}>
+          <LogOut style={{ width:16, height:16, flexShrink:0 }} />
+          <span style={{ flex:1 }}>{t("logout")}</span>
+        </button>
+
         {/* User chip */}
-        <div
-          className="flex items-center gap-3 mt-3 px-3 py-2.5 rounded-xl"
-          style={{ background: "#0a1620" }}
-        >
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-            style={{ background: "linear-gradient(135deg,#c49a5a,#8a6030)" }}
-          >
-            م
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:12, padding:"10px 12px", borderRadius:12, background:"#0a1620" }}>
+          <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg,#c49a5a,#8a6030)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
+            ن
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold truncate" style={{ color: "#c8d8e8" }}>نواف العتيبي</p>
-            <p className="text-xs truncate" style={{ color: "#4a6070" }}>عميل مميز</p>
+          <div style={{ minWidth:0 }}>
+            <p style={{ fontSize:13, fontWeight:700, color:"#c8d8e8", truncate:true, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>نواف العتيبي</p>
+            <p style={{ fontSize:11, color:"#4a6070" }}>{t("premium_client")}</p>
           </div>
         </div>
       </div>
