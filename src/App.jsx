@@ -1,56 +1,45 @@
 import { useState } from "react";
-import Navbar from "./components/layout/Navbar";
-import Modal from "./components/layout/Modal";
+import Sidebar from "./components/layout/Sidebar";
+import Topbar  from "./components/layout/Topbar";
+import Modal   from "./components/layout/Modal";
 import CustomerView from "./views/CustomerView";
-import BankView from "./views/BankView";
+import BankView     from "./views/BankView";
 import { freezeAccount } from "./api/fraudService";
 
-const initialModalState = {
-  open: false,
-  title: "",
-  message: "",
-  type: "info",
-  showCancel: false,
-  confirmText: "حسناً",
-  onConfirm: null,
+const initialModal = {
+  open: false, title: "", message: "",
+  type: "info", showCancel: false, confirmText: "حسناً", onConfirm: null,
 };
 
-function App() {
-  const [view, setView] = useState("customer");
-  const [modal, setModal] = useState(initialModalState);
+export default function App() {
+  const [view,       setView]       = useState("customer");
+  const [modal,      setModal]      = useState(initialModal);
   const [frozenCase, setFrozenCase] = useState(null);
 
-  function showModal(config) {
-    setModal({ ...initialModalState, open: true, ...config });
-  }
-
-  function closeModal() {
-    setModal((prev) => ({ ...prev, open: false }));
-  }
+  const showModal = (config) => setModal({ ...initialModal, open: true, ...config });
+  const closeModal= () => setModal((p) => ({ ...p, open: false }));
 
   function handleFreezeRequest(caseId) {
     showModal({
       title: "تأكيد التجميد الطارئ",
-      message:
-        "هل أنت متأكد من تجميد الحساب؟ سيتم إيقاف جميع الحوالات الصادرة وعمليات الشراء الإلكتروني فوراً ورفع بلاغ لإدارة مكافحة الاحتيال.",
+      message: "سيتم إيقاف جميع الحوالات الصادرة وعمليات الشراء الإلكتروني فوراً، ورفع بلاغ رسمي لإدارة مكافحة الاحتيال. هل تؤكد؟",
       type: "danger",
       showCancel: true,
-      confirmText: "نعم، قم بتجميد الحساب",
+      confirmText: "نعم، جمّد الحساب الآن",
       onConfirm: () => executeFreeze(caseId),
     });
   }
 
   async function executeFreeze(caseId) {
-    const response = await freezeAccount({ caseId, reason: "customer_initiated" });
-
+    const res = await freezeAccount({ caseId, reason: "customer_initiated" });
     showModal({
       title: "تم التجميد بنجاح",
-      message: `تم تجميد حسابك احترازياً لحماية أموالك. تم تحويل البلاغ رقم #${response.reportNumber} لفريق مكافحة الاحتيال، سيقومون بالتواصل معك قريباً.`,
+      message: `تم تجميد حسابك احترازياً. البلاغ رقم #${res.reportNumber} قيد المعالجة من قِبل فريق الأمن المالي. سيتواصلون معك خلال ساعة.`,
       type: "success",
-      confirmText: "الانتقال للوحة البنك (للعرض)",
+      confirmText: "الانتقال للوحة البنك",
       onConfirm: () => {
         setFrozenCase({
-          id: response.reportNumber,
+          id: res.reportNumber,
           timeAgo: "الآن",
           customerName: "نواف العتيبي",
           fraudPattern: "احتيال OTP عبر الهندسة الاجتماعية",
@@ -64,19 +53,25 @@ function App() {
   }
 
   return (
-    <div className="text-gray-800 flex flex-col min-h-screen">
+    <div className="flex h-screen overflow-hidden" dir="rtl">
       <Modal {...modal} onClose={closeModal} />
-      <Navbar view={view} onSwitchView={setView} />
 
-      <main className="flex-grow w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        {view === "customer" ? (
-          <CustomerView onShowModal={showModal} onFreezeRequest={handleFreezeRequest} />
-        ) : (
-          <BankView injectedCase={frozenCase} />
-        )}
-      </main>
+      {/* Sidebar */}
+      <Sidebar view={view} onSwitchView={setView} />
+
+      {/* Main content column */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <Topbar view={view} />
+
+        <main className="flex-1 overflow-y-auto p-5 lg:p-7" style={{ background: "#f5f7fa" }}>
+          <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+            {view === "customer"
+              ? <CustomerView onShowModal={showModal} onFreezeRequest={handleFreezeRequest} />
+              : <BankView injectedCase={frozenCase} />
+            }
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
-
-export default App;

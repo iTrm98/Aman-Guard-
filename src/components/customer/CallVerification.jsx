@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Phone, Search, RotateCw, Loader2, TriangleAlert } from "lucide-react";
+import { PhoneCall, RefreshCw, ShieldX, ShieldCheck, Loader2 } from "lucide-react";
 import { checkCallStatus } from "../../api/fraudService";
 
 export default function CallVerification() {
-  const [status, setStatus] = useState("idle"); // idle | loading | done
+  const [status, setStatus] = useState("idle");
   const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [error,  setError]  = useState(null);
 
   async function handleCheck() {
     setStatus("loading");
@@ -15,64 +15,76 @@ export default function CallVerification() {
       setResult(data);
       setStatus("done");
     } catch {
-      setError("تعذر التحقق من حالة الاتصال حالياً. حاول مرة أخرى.");
+      setError("تعذّر التحقق. يرجى المحاولة مجدداً.");
       setStatus("idle");
     }
   }
 
+  const isUnsafe = status === "done" && result && !result.hasActiveOfficialCall;
+
   return (
-    <div className="glass-panel rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-16 h-16 bg-brand-gold opacity-10 rounded-bl-full" />
-      <div className="flex items-start gap-4 mb-4">
-        <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
-          <Phone className="w-5 h-5" />
+    <div className="card p-5 flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "#eaf3fb" }}
+        >
+          <PhoneCall className="w-5 h-5" style={{ color: "#1a5a9a" }} />
         </div>
         <div>
-          <h3 className="text-xl font-bold text-brand-dark mb-1">التحقق من مكالمة البنك</h3>
-          <p className="text-sm text-gray-500">
-            هل تتحدث مع شخص يدعي أنه موظف بنك الآن؟ تحقق من وجود اتصال رسمي.
+          <h3 className="font-black text-base" style={{ color: "#0d1b2a" }}>التحقق من مكالمة البنك</h3>
+          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#8090a0" }}>
+            تحقق فوراً إذا كان الشخص المتصل يمثل البنك فعلياً.
           </p>
         </div>
       </div>
 
-      <button
-        onClick={handleCheck}
-        disabled={status === "loading"}
-        className="w-full mt-4 bg-brand-dark text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 shadow-md disabled:opacity-60"
-      >
-        {status === "done" ? (
-          <>
-            <span>إعادة الفحص</span>
-            <RotateCw className="w-4 h-4 text-brand-gold" />
-          </>
-        ) : (
-          <>
-            <span>فحص حالة الاتصال الآن</span>
-            <Search className="w-4 h-4 text-brand-gold" />
-          </>
-        )}
-      </button>
+      {/* Divider */}
+      <div style={{ height: 1, background: "#edf0f4" }} />
 
-      {status === "loading" && (
-        <div className="mt-4 text-center text-brand-gold text-sm py-2 flex items-center justify-center gap-2">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          جاري التحقق من السجلات...
-        </div>
-      )}
-
-      {error && <p className="mt-4 text-center text-brand-red text-sm">{error}</p>}
-
-      {status === "done" && result && !result.hasActiveOfficialCall && (
-        <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4 animate-fade-in">
-          <div className="flex gap-3">
-            <TriangleAlert className="w-5 h-5 text-brand-red mt-0.5 shrink-0" />
-            <div>
-              <h4 className="font-bold text-brand-red">لا يوجد اتصال رسمي نشط</h4>
-              <p className="text-sm text-red-700 mt-1">{result.message}</p>
-            </div>
+      {/* Result area */}
+      {status === "done" && result && (
+        <div
+          className="rounded-xl p-4 animate-fade-in flex gap-3"
+          style={{
+            background: isUnsafe ? "#fdf0ef" : "#eaf7ee",
+            border: `1.5px solid ${isUnsafe ? "#f5c6c2" : "#b2dfc0"}`,
+          }}
+        >
+          {isUnsafe
+            ? <ShieldX  className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#c0392b" }} />
+            : <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#1a7a4a" }} />
+          }
+          <div>
+            <p className="text-sm font-black mb-1" style={{ color: isUnsafe ? "#c0392b" : "#1a7a4a" }}>
+              {isUnsafe ? "تحذير: لا يوجد اتصال رسمي" : "الاتصال مُعتمد"}
+            </p>
+            <p className="text-xs leading-relaxed" style={{ color: isUnsafe ? "#7a2020" : "#1a4a2a" }}>
+              {result.message}
+            </p>
           </div>
         </div>
       )}
+
+      {error && (
+        <p className="text-xs text-center" style={{ color: "#c0392b" }}>{error}</p>
+      )}
+
+      {/* Action */}
+      <button
+        onClick={handleCheck}
+        disabled={status === "loading"}
+        className="btn-primary w-full"
+        style={status === "done" && !isUnsafe ? { background: "#1a7a4a" } : {}}
+      >
+        {status === "loading"
+          ? <><Loader2 className="w-4 h-4 animate-spin" /> جاري التحقق...</>
+          : status === "done"
+            ? <><RefreshCw className="w-4 h-4" /> إعادة الفحص</>
+            : <><PhoneCall className="w-4 h-4" /> فحص الاتصال الآن</>
+        }
+      </button>
     </div>
   );
 }
