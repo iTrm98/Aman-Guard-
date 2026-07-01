@@ -73,7 +73,7 @@ export default function CaseDetailPanel({ caseData, onClose, onAction }) {
               { label: t("case_id"),          val: `#${caseData.id}` },
               { label: t("col_client"),        val: caseData.customerName },
               { label: t("case_reported_at"),  val: caseData.timeAgo },
-              { label: t("case_status"),       val: t(`status_${caseData.accountStatus}`) ?? caseData.accountStatus },
+              { label: t("case_status"),       val: t({ active:"status_active", frozen:"status_frozen", partially_restricted:"status_partial" }[caseData.accountStatus] ?? "status_active") },
             ].map(({ label, val }) => (
               <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid var(--border-subtle)", fontSize:13 }}>
                 <span style={{ color:"var(--text-muted)" }}>{label}</span>

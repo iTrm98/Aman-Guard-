@@ -14,9 +14,9 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
     medium:   { cls:"risk-medium",   Icon:AlertCircle    },
   };
   const STATUS = {
-    active:               { cls:"status-active"  },
-    partially_restricted: { cls:"status-partial" },
-    frozen:               { cls:"status-frozen"  },
+    active:               { cls:"status-active",  tKey:"status_active"  },
+    partially_restricted: { cls:"status-partial", tKey:"status_partial" },
+    frozen:               { cls:"status-frozen",  tKey:"status_frozen"  },
   };
 
   const filtered = cases
@@ -111,7 +111,7 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
                     </span>
                   </td>
                   <td style={{ padding:"13px 18px" }}>
-                    <span className={`status-badge ${status.cls}`}>{t(`status_${c.accountStatus}`) || c.accountStatus}</span>
+                    <span className={`status-badge ${status.cls}`}>{t(status.tKey)}</span>
                   </td>
                   <td style={{ padding:"13px 18px", textAlign:"center" }}>
                     {isNew ? (
