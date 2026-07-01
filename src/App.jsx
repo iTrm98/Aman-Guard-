@@ -1,61 +1,46 @@
 import { useState } from "react";
-import Navbar from "./components/layout/Navbar";
-import Modal from "./components/layout/Modal";
+import Sidebar    from "./components/layout/Sidebar";
+import Topbar     from "./components/layout/Topbar";
+import Modal      from "./components/layout/Modal";
+import NotificationsPanel from "./components/layout/NotificationsPanel";
+import SettingsPanel      from "./components/layout/SettingsPanel";
 import CustomerView from "./views/CustomerView";
-import BankView from "./views/BankView";
+import BankView     from "./views/BankView";
 import { freezeAccount } from "./api/fraudService";
+import { useApp } from "./context/useApp";
 
-const initialModalState = {
-  open: false,
-  title: "",
-  message: "",
-  type: "info",
-  showCancel: false,
-  confirmText: "حسناً",
-  onConfirm: null,
-};
-
-function App() {
-  const [view, setView] = useState("customer");
-  const [modal, setModal] = useState(initialModalState);
-  const [frozenCase, setFrozenCase] = useState(null);
-
-  function showModal(config) {
-    setModal({ ...initialModalState, open: true, ...config });
-  }
-
-  function closeModal() {
-    setModal((prev) => ({ ...prev, open: false }));
-  }
+function AppShell() {
+  const { modal, closeModal, showModal, panel, closePanel, t } = useApp();
+  const [view,          setView]          = useState("customer");
+  const [frozenCase,    setFrozenCase]    = useState(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   function handleFreezeRequest(caseId) {
     showModal({
-      title: "تأكيد التجميد الطارئ",
-      message:
-        "هل أنت متأكد من تجميد الحساب؟ سيتم إيقاف جميع الحوالات الصادرة وعمليات الشراء الإلكتروني فوراً ورفع بلاغ لإدارة مكافحة الاحتيال.",
-      type: "danger",
+      title:      t("freeze_confirm_title"),
+      message:    t("freeze_confirm_msg"),
+      type:       "danger",
       showCancel: true,
-      confirmText: "نعم، قم بتجميد الحساب",
-      onConfirm: () => executeFreeze(caseId),
+      confirmText:t("freeze_confirm_btn"),
+      onConfirm:  () => executeFreeze(caseId),
     });
   }
 
   async function executeFreeze(caseId) {
-    const response = await freezeAccount({ caseId, reason: "customer_initiated" });
-
+    const res = await freezeAccount({ caseId, reason:"customer_initiated" });
     showModal({
-      title: "تم التجميد بنجاح",
-      message: `تم تجميد حسابك احترازياً لحماية أموالك. تم تحويل البلاغ رقم #${response.reportNumber} لفريق مكافحة الاحتيال، سيقومون بالتواصل معك قريباً.`,
-      type: "success",
-      confirmText: "الانتقال للوحة البنك (للعرض)",
+      title:      t("freeze_success_title"),
+      message:    t("freeze_success_msg", { n: res.reportNumber }),
+      type:       "success",
+      confirmText:t("goto_bank"),
       onConfirm: () => {
         setFrozenCase({
-          id: response.reportNumber,
-          timeAgo: "الآن",
-          customerName: "نواف العتيبي",
-          fraudPattern: "احتيال OTP عبر الهندسة الاجتماعية",
-          riskScore: 95,
-          riskLevel: "critical",
+          id:            res.reportNumber,
+          timeAgo:       t("lang") === "en" ? "Just now" : "الآن",
+          customerName:  "نواف العتيبي",
+          fraudPattern:  "احتيال OTP عبر الهندسة الاجتماعية",
+          riskScore:     95,
+          riskLevel:     "critical",
           accountStatus: "frozen",
         });
         setView("bank");
@@ -64,19 +49,34 @@ function App() {
   }
 
   return (
-    <div className="text-gray-800 flex flex-col min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Modal {...modal} onClose={closeModal} />
-      <Navbar view={view} onSwitchView={setView} />
 
-      <main className="flex-grow w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        {view === "customer" ? (
-          <CustomerView onShowModal={showModal} onFreezeRequest={handleFreezeRequest} />
-        ) : (
-          <BankView injectedCase={frozenCase} />
-        )}
-      </main>
+      {panel?.type === "notifications" && <NotificationsPanel onClose={closePanel} />}
+      {panel?.type === "settings"      && <SettingsPanel      onClose={closePanel} />}
+
+      <Sidebar
+        view={view}
+        onSwitchView={setView}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
+      />
+
+      <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, overflow:"hidden" }}>
+        <Topbar view={view} onOpenMobileNav={() => setMobileNavOpen(true)} />
+        <main className="p-4 sm:p-5 md:p-7" style={{ flex:1, overflowY:"auto", background:"var(--bg-app)", transition:"background 0.25s" }}>
+          <div style={{ maxWidth:1080, margin:"0 auto" }}>
+            {view === "customer"
+              ? <CustomerView onFreezeRequest={handleFreezeRequest} />
+              : <BankView     injectedCase={frozenCase} />
+            }
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return <AppShell />;
+}

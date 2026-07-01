@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { renderWithApp } from "./test-utils";
 import RiskReport from "../components/customer/RiskReport";
 
 const mockResult = {
@@ -13,12 +14,12 @@ const mockResult = {
 
 describe("RiskReport", () => {
   it("renders nothing when there is no result", () => {
-    const { container } = render(<RiskReport result={null} />);
+    const { container } = renderWithApp(<RiskReport result={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders the risk score, findings, and freeze button", () => {
-    render(<RiskReport result={mockResult} onFreezeRequest={vi.fn()} />);
+    renderWithApp(<RiskReport result={mockResult} onFreezeRequest={vi.fn()} />);
 
     expect(screen.getByText("95")).toBeInTheDocument();
     expect(screen.getByText("حرج (Critical)")).toBeInTheDocument();
@@ -31,7 +32,7 @@ describe("RiskReport", () => {
     const { default: userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
 
-    render(<RiskReport result={{ ...mockResult, caseId: "CASE-1" }} onFreezeRequest={onFreezeRequest} />);
+    renderWithApp(<RiskReport result={{ ...mockResult, caseId: "CASE-1" }} onFreezeRequest={onFreezeRequest} />);
     await user.click(screen.getByRole("button", { name: /تجميد طارئ للحساب/ }));
 
     expect(onFreezeRequest).toHaveBeenCalledWith("CASE-1");

@@ -1,29 +1,24 @@
 import { useState } from "react";
-import Hero from "../components/customer/Hero";
+import AccountCard    from "../components/customer/AccountCard";
 import CallVerification from "../components/customer/CallVerification";
-import ScamChecker from "../components/customer/ScamChecker";
-import RiskReport from "../components/customer/RiskReport";
+import ScamChecker    from "../components/customer/ScamChecker";
+import RiskReport     from "../components/customer/RiskReport";
+import { useApp }     from "../context/useApp";
 
-export default function CustomerView({ onShowModal, onFreezeRequest }) {
+export default function CustomerView({ onFreezeRequest }) {
+  const { t, showModal } = useApp();
   const [analysisResult, setAnalysisResult] = useState(null);
 
-  function handleValidationError() {
-    onShowModal({
-      title: "خطأ في الإدخال",
-      message: "الرجاء إدخال نص الرسالة أو الرابط المراد فحصه أولاً.",
-      type: "info",
-    });
-  }
-
   return (
-    <div className="space-y-6 animate-fade-in">
-      <Hero />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div style={{ display:"flex", flexDirection:"column", gap:18 }} className="animate-fade-in">
+      <AccountCard />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         <CallVerification />
-        <ScamChecker onResult={setAnalysisResult} onValidationError={handleValidationError} />
+        <ScamChecker
+          onResult={setAnalysisResult}
+          onValidationError={() => showModal({ title:t("field_required_title"), message:t("field_required_msg"), type:"info" })}
+        />
       </div>
-
       {analysisResult && <RiskReport result={analysisResult} onFreezeRequest={onFreezeRequest} />}
     </div>
   );
