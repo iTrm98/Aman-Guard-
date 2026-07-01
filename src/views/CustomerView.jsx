@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Hero from "../components/customer/Hero";
+import AccountCard from "../components/customer/AccountCard";
 import CallVerification from "../components/customer/CallVerification";
 import ScamChecker from "../components/customer/ScamChecker";
 import RiskReport from "../components/customer/RiskReport";
@@ -9,22 +9,27 @@ export default function CustomerView({ onShowModal, onFreezeRequest }) {
 
   function handleValidationError() {
     onShowModal({
-      title: "خطأ في الإدخال",
-      message: "الرجاء إدخال نص الرسالة أو الرابط المراد فحصه أولاً.",
+      title: "حقل مطلوب",
+      message: "الرجاء لصق نص الرسالة أو الرابط المراد فحصه في الحقل أولاً.",
       type: "info",
     });
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <Hero />
+    <div className="space-y-5 animate-fade-in">
+      {/* Account card spans full width */}
+      <AccountCard />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Two tool cards side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CallVerification />
         <ScamChecker onResult={setAnalysisResult} onValidationError={handleValidationError} />
       </div>
 
-      {analysisResult && <RiskReport result={analysisResult} onFreezeRequest={onFreezeRequest} />}
+      {/* AI report appears below when ready */}
+      {analysisResult && (
+        <RiskReport result={analysisResult} onFreezeRequest={onFreezeRequest} />
+      )}
     </div>
   );
 }

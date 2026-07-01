@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
-import { Download, RotateCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import StatsCards from "../components/bank/StatsCards";
 import CasesTable from "../components/bank/CasesTable";
 import { getActiveCases } from "../api/fraudService";
 
 export default function BankView({ injectedCase }) {
-  const [stats, setStats] = useState(null);
-  const [cases, setCases] = useState([]);
+  const [stats,   setStats]   = useState(null);
+  const [cases,   setCases]   = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -21,41 +21,43 @@ export default function BankView({ injectedCase }) {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 
   useEffect(() => {
     if (!injectedCase) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing externally-triggered case into local table state
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCases((prev) => [injectedCase, ...prev.filter((c) => c.id !== injectedCase.id)]);
     setStats((prev) =>
-      prev
-        ? {
-            ...prev,
-            criticalToday: prev.criticalToday + 1,
-            accountsFrozen: prev.accountsFrozen + 1,
-          }
-        : prev
+      prev ? { ...prev, criticalToday: prev.criticalToday + 1, accountsFrozen: prev.accountsFrozen + 1 } : prev
     );
   }, [injectedCase]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-5 animate-fade-in">
+      {/* Page actions */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-brand-dark">لوحة عمليات مكافحة الاحتيال (الإنذار المبكر)</h2>
-          <p className="text-gray-500 text-sm">مراقبة التنبيهات وإدارة الحالات عالية الخطورة في الوقت الفعلي.</p>
+          <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#c49a5a" }}>
+            مراقبة مباشرة
+          </p>
+          <h2 className="text-xl font-black mt-0.5" style={{ color: "#0d1b2a" }}>
+            مركز عمليات مكافحة الاحتيال
+          </h2>
         </div>
-        <div className="flex gap-3">
-          <button className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition shadow-sm flex items-center gap-2">
-            <Download className="w-4 h-4" /> تصدير التقرير
+        <div className="flex gap-2">
+          <button className="btn-ghost">
+            <Download className="w-4 h-4" />
+            <span>تصدير التقرير</span>
           </button>
           <button
             onClick={load}
-            className="bg-brand-dark text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 transition shadow-sm flex items-center gap-2"
+            className="btn-primary"
+            style={{ padding: "9px 18px" }}
           >
-            <RotateCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> تحديث البيانات
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <span>تحديث</span>
           </button>
         </div>
       </div>

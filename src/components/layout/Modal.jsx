@@ -1,27 +1,16 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 
-const ICONS = {
-  danger: { Icon: AlertTriangle, wrap: "bg-red-100 text-brand-red" },
-  success: { Icon: CheckCircle2, wrap: "bg-green-100 text-brand-green" },
-  info: { Icon: Info, wrap: "bg-blue-100 text-blue-600" },
-};
-
-const CONFIRM_BTN = {
-  danger: "bg-brand-red hover:bg-red-800",
-  success: "bg-brand-green hover:bg-green-800",
-  info: "bg-brand-gold hover:bg-opacity-90",
+const CONFIG = {
+  danger:  { Icon: AlertTriangle, accent: "#c0392b", bg: "#fdf0ef", iconBg: "#fde8e6" },
+  success: { Icon: CheckCircle2,  accent: "#1a7a4a", bg: "#eaf7ee", iconBg: "#d4f0de" },
+  info:    { Icon: Info,          accent: "#1a5a9a", bg: "#eaf3fb", iconBg: "#d4e8f7" },
 };
 
 export default function Modal({
-  open,
-  title,
-  message,
-  type = "info",
-  showCancel = false,
-  confirmText = "حسناً",
-  onConfirm,
-  onClose,
+  open, title, message, type = "info",
+  showCancel = false, confirmText = "حسناً",
+  onConfirm, onClose,
 }) {
   const [visible, setVisible] = useState(false);
 
@@ -30,50 +19,64 @@ export default function Modal({
       const t = setTimeout(() => setVisible(true), 10);
       return () => clearTimeout(t);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets entry animation state when modal closes
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(false);
   }, [open]);
 
   if (!open) return null;
 
-  const { Icon, wrap } = ICONS[type] ?? ICONS.info;
+  const { Icon, accent, iconBg } = CONFIG[type] ?? CONFIG.info;
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-brand-dark transition-opacity duration-300 backdrop-blur-sm ${
-        visible ? "bg-opacity-70 opacity-100" : "bg-opacity-0 opacity-0"
-      }`}
+      className="fixed inset-0 z-50 flex items-center justify-center transition-all duration-300"
+      style={{ background: visible ? "rgba(13,27,42,0.65)" : "rgba(13,27,42,0)", backdropFilter: "blur(4px)" }}
     >
       <div
-        className={`bg-white rounded-2xl shadow-2xl p-6 w-11/12 max-w-md transform transition-transform duration-300 ${
-          visible ? "scale-100" : "scale-95"
-        }`}
+        className="relative w-11/12 max-w-md rounded-2xl overflow-hidden transition-all duration-300"
+        style={{
+          background: "#fff",
+          boxShadow: "0 24px 64px rgba(13,27,42,0.22)",
+          transform: visible ? "scale(1) translateY(0)" : "scale(0.96) translateY(12px)",
+          opacity: visible ? 1 : 0,
+        }}
       >
-        <div className="flex justify-center mb-4">
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl ${wrap}`}>
-            <Icon className="w-8 h-8" />
-          </div>
-        </div>
-        <h3 className="text-xl font-bold text-center text-brand-dark mb-2">{title}</h3>
-        <p className="text-gray-600 text-center mb-6 text-sm leading-relaxed">{message}</p>
-        <div className="flex gap-3 justify-center">
-          {showCancel && (
-            <button
-              onClick={onClose}
-              className="flex-1 px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition"
-            >
-              إلغاء
-            </button>
-          )}
+        {/* Top accent bar */}
+        <div style={{ height: 4, background: accent }} />
+
+        <div className="p-6">
+          {/* Close */}
           <button
-            onClick={() => {
-              onConfirm?.();
-              onClose?.();
-            }}
-            className={`${showCancel ? "flex-1" : "w-full"} px-5 py-2.5 rounded-xl text-white font-bold shadow-md transition ${CONFIRM_BTN[type]}`}
+            onClick={onClose}
+            className="absolute top-5 left-5 rounded-lg p-1 transition"
+            style={{ color: "#8090a0" }}
           >
-            {confirmText}
+            <X className="w-4 h-4" />
           </button>
+
+          {/* Icon */}
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: iconBg }}
+          >
+            <Icon className="w-7 h-7" style={{ color: accent }} />
+          </div>
+
+          <h3 className="text-xl font-black text-center mb-2" style={{ color: "#0d1b2a" }}>{title}</h3>
+          <p className="text-sm text-center leading-relaxed mb-6" style={{ color: "#5a6a7a" }}>{message}</p>
+
+          <div className="flex gap-3">
+            {showCancel && (
+              <button onClick={onClose} className="btn-ghost flex-1">إلغاء</button>
+            )}
+            <button
+              onClick={() => { onConfirm?.(); onClose?.(); }}
+              className={`flex-1 ${type === "danger" ? "btn-danger" : "btn-primary"}`}
+              style={type !== "danger" ? { background: accent } : {}}
+            >
+              {confirmText}
+            </button>
+          </div>
         </div>
       </div>
     </div>
