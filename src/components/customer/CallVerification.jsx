@@ -1,88 +1,63 @@
 import { useState } from "react";
 import { PhoneCall, RefreshCw, ShieldX, ShieldCheck, Loader2 } from "lucide-react";
 import { checkCallStatus } from "../../api/fraudService";
+import { useApp } from "../../context/AppContext";
 
 export default function CallVerification() {
+  const { t } = useApp();
   const [status, setStatus] = useState("idle");
   const [result, setResult] = useState(null);
   const [error,  setError]  = useState(null);
 
   async function handleCheck() {
-    setStatus("loading");
-    setError(null);
+    setStatus("loading"); setError(null);
     try {
       const data = await checkCallStatus();
-      setResult(data);
-      setStatus("done");
+      setResult(data); setStatus("done");
     } catch {
-      setError("تعذّر التحقق. يرجى المحاولة مجدداً.");
-      setStatus("idle");
+      setError(t("verify_error")); setStatus("idle");
     }
   }
 
   const isUnsafe = status === "done" && result && !result.hasActiveOfficialCall;
 
   return (
-    <div className="card p-5 flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: "#eaf3fb" }}
-        >
-          <PhoneCall className="w-5 h-5" style={{ color: "#1a5a9a" }} />
+    <div className="card" style={{ padding:20, display:"flex", flexDirection:"column", gap:16 }}>
+      <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+        <div style={{ width:40, height:40, borderRadius:12, background:"rgba(26,90,154,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <PhoneCall style={{ width:18, height:18, color:"#1a5a9a" }} />
         </div>
         <div>
-          <h3 className="font-black text-base" style={{ color: "#0d1b2a" }}>التحقق من مكالمة البنك</h3>
-          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#8090a0" }}>
-            تحقق فوراً إذا كان الشخص المتصل يمثل البنك فعلياً.
-          </p>
+          <h3 style={{ fontWeight:900, fontSize:15, color:"var(--text-primary)", marginBottom:4 }}>{t("call_title")}</h3>
+          <p style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>{t("call_desc")}</p>
         </div>
       </div>
 
-      {/* Divider */}
-      <div style={{ height: 1, background: "#edf0f4" }} />
+      <div style={{ height:1, background:"var(--border-subtle)" }} />
 
-      {/* Result area */}
       {status === "done" && result && (
-        <div
-          className="rounded-xl p-4 animate-fade-in flex gap-3"
-          style={{
-            background: isUnsafe ? "#fdf0ef" : "#eaf7ee",
-            border: `1.5px solid ${isUnsafe ? "#f5c6c2" : "#b2dfc0"}`,
-          }}
-        >
+        <div style={{ borderRadius:12, padding:14, display:"flex", gap:12, background: isUnsafe ? "rgba(192,57,43,0.08)" : "rgba(26,122,74,0.08)", border:`1.5px solid ${isUnsafe ? "rgba(192,57,43,0.25)" : "rgba(26,122,74,0.25)"}` }}>
           {isUnsafe
-            ? <ShieldX  className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#c0392b" }} />
-            : <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#1a7a4a" }} />
+            ? <ShieldX  style={{ width:18, height:18, color:"var(--red)",   flexShrink:0, marginTop:1 }} />
+            : <ShieldCheck style={{ width:18, height:18, color:"var(--green)", flexShrink:0, marginTop:1 }} />
           }
           <div>
-            <p className="text-sm font-black mb-1" style={{ color: isUnsafe ? "#c0392b" : "#1a7a4a" }}>
-              {isUnsafe ? "تحذير: لا يوجد اتصال رسمي" : "الاتصال مُعتمد"}
+            <p style={{ fontSize:13, fontWeight:900, marginBottom:4, color: isUnsafe ? "var(--red)" : "var(--green)" }}>
+              {isUnsafe ? t("call_warning_title") : t("call_ok_title")}
             </p>
-            <p className="text-xs leading-relaxed" style={{ color: isUnsafe ? "#7a2020" : "#1a4a2a" }}>
-              {result.message}
-            </p>
+            <p style={{ fontSize:12, lineHeight:1.6, color:"var(--text-secondary)" }}>{result.message}</p>
           </div>
         </div>
       )}
 
-      {error && (
-        <p className="text-xs text-center" style={{ color: "#c0392b" }}>{error}</p>
-      )}
+      {error && <p style={{ fontSize:12, textAlign:"center", color:"var(--red)" }}>{error}</p>}
 
-      {/* Action */}
-      <button
-        onClick={handleCheck}
-        disabled={status === "loading"}
-        className="btn-primary w-full"
-        style={status === "done" && !isUnsafe ? { background: "#1a7a4a" } : {}}
-      >
+      <button onClick={handleCheck} disabled={status === "loading"} className="btn-primary" style={{ width:"100%", ...(status === "done" && !isUnsafe ? { background:"var(--green)" } : {}) }}>
         {status === "loading"
-          ? <><Loader2 className="w-4 h-4 animate-spin" /> جاري التحقق...</>
+          ? <><Loader2 style={{ width:16, height:16 }} className="animate-spin" />{t("verifying")}</>
           : status === "done"
-            ? <><RefreshCw className="w-4 h-4" /> إعادة الفحص</>
-            : <><PhoneCall className="w-4 h-4" /> فحص الاتصال الآن</>
+            ? <><RefreshCw style={{ width:16, height:16 }} />{t("re_verify")}</>
+            : <><PhoneCall style={{ width:16, height:16 }} />{t("verify_now")}</>
         }
       </button>
     </div>

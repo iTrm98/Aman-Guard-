@@ -1,86 +1,35 @@
 import { ShieldAlert, Eye, Lock, TrendingUp } from "lucide-react";
-
-const CARDS = [
-  {
-    key: "criticalToday",
-    label: "حالات حرجة اليوم",
-    sub: "تتطلب استجابة فورية",
-    Icon: ShieldAlert,
-    accent: "#c0392b",
-    bg: "#fdf0ef",
-    border: "#f5c6c2",
-    trend: "+٣ منذ الأمس",
-    trendUp: true,
-  },
-  {
-    key: "suspectedCases",
-    label: "حالات قيد المراقبة",
-    sub: "اشتباه متوسط إلى عالٍ",
-    Icon: Eye,
-    accent: "#d35400",
-    bg: "#fef5ec",
-    border: "#fad7b0",
-    trend: "+٧ هذا الأسبوع",
-    trendUp: true,
-  },
-  {
-    key: "accountsFrozen",
-    label: "حسابات مجمدة",
-    sub: "إجراء احترازي نشط",
-    Icon: Lock,
-    accent: "#1a5a9a",
-    bg: "#eaf3fb",
-    border: "#a8c9ee",
-    trend: "٢ تم الإفراج عنهم",
-    trendUp: false,
-  },
-  {
-    key: "amountSaved",
-    label: "مبالغ محميّة (ر.س)",
-    sub: "إجمالي الشهر الحالي",
-    Icon: TrendingUp,
-    accent: "#1a7a4a",
-    bg: "#eaf7ee",
-    border: "#b2dfc0",
-    trend: "↑ ٢٣٪ عن الشهر الماضي",
-    trendUp: false,
-  },
-];
+import { useApp } from "../../context/AppContext";
 
 export default function StatsCards({ stats }) {
+  const { t } = useApp();
+
+  const CARDS = [
+    { key:"criticalToday",  labelKey:"stats_critical",  subKey:"stats_critical_sub",  trendKey:"stats_critical_trend",  Icon:ShieldAlert, accent:"var(--red)",   bg:"rgba(192,57,43,0.08)",  border:"rgba(192,57,43,0.2)"  },
+    { key:"suspectedCases", labelKey:"stats_suspected", subKey:"stats_suspected_sub", trendKey:"stats_suspected_trend", Icon:Eye,         accent:"#d35400",      bg:"rgba(211,84,0,0.08)",   border:"rgba(211,84,0,0.2)"   },
+    { key:"accountsFrozen", labelKey:"stats_frozen",    subKey:"stats_frozen_sub",    trendKey:"stats_frozen_trend",    Icon:Lock,        accent:"#1a5a9a",      bg:"rgba(26,90,154,0.08)",  border:"rgba(26,90,154,0.2)"  },
+    { key:"amountSaved",    labelKey:"stats_saved",     subKey:"stats_saved_sub",     trendKey:"stats_saved_trend",     Icon:TrendingUp,  accent:"var(--green)", bg:"rgba(26,122,74,0.08)",  border:"rgba(26,122,74,0.2)"  },
+  ];
+
   if (!stats) return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {[0,1,2,3].map((i) => (
-        <div key={i} className="card p-5 h-28 animate-pulse" style={{ background: "#f0f2f5" }} />
-      ))}
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
+      {[0,1,2,3].map(i => <div key={i} className="card" style={{ height:110, background:"var(--bg-subtle)", animation:"pulseSoft 1.5s ease-in-out infinite" }} />)}
     </div>
   );
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {CARDS.map(({ key, label, sub, Icon, accent, bg, border, trend }) => (
-        <div
-          key={key}
-          className="rounded-2xl p-5"
-          style={{ background: "#fff", border: `1.5px solid ${border}` }}
-        >
-          <div className="flex justify-between items-start mb-3">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: bg }}
-            >
-              <Icon className="w-4.5 h-4.5" style={{ color: accent, width: 18, height: 18 }} />
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
+      {CARDS.map(({ key, labelKey, subKey, trendKey, Icon, accent, bg, border }) => (
+        <div key={key} style={{ borderRadius:14, padding:18, background:"var(--bg-surface)", border:`1.5px solid ${border}`, transition:"box-shadow 0.2s" }} className="card">
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+            <div style={{ width:36, height:36, borderRadius:10, background:bg, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Icon style={{ width:17, height:17, color:accent }} />
             </div>
-            <span
-              className="text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: bg, color: accent }}
-            >
-              {trend}
-            </span>
+            <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:99, background:bg, color:accent }}>{t(trendKey)}</span>
           </div>
-          <p className="text-2xl font-black" style={{ color: "#0d1b2a" }}>{stats[key]}</p>
-          <p className="text-sm font-bold mt-0.5" style={{ color: "#3a4a5a" }}>{label}</p>
-          <p className="text-xs mt-0.5" style={{ color: "#8090a0" }}>{sub}</p>
+          <p style={{ fontSize:26, fontWeight:900, color:"var(--text-primary)", lineHeight:1 }}>{stats[key]}</p>
+          <p style={{ fontSize:13, fontWeight:700, color:"var(--text-secondary)", marginTop:4 }}>{t(labelKey)}</p>
+          <p style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{t(subKey)}</p>
         </div>
       ))}
     </div>

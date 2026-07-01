@@ -1,81 +1,61 @@
 import { useState } from "react";
 import { ScanText, Sparkles, Loader2 } from "lucide-react";
 import { analyzeText } from "../../api/fraudService";
+import { useApp } from "../../context/AppContext";
 
 export default function ScamChecker({ onResult, onValidationError }) {
+  const { t } = useApp();
   const [text,      setText]      = useState("");
   const [loading,   setLoading]   = useState(false);
   const [hasResult, setHasResult] = useState(false);
-  const charCount = text.length;
 
   async function handleAnalyze() {
     if (!text.trim()) { onValidationError?.(); return; }
     setLoading(true);
     try {
       const result = await analyzeText(text);
-      onResult?.(result);
-      setHasResult(true);
-    } finally {
-      setLoading(false);
-    }
+      onResult?.(result); setHasResult(true);
+    } finally { setLoading(false); }
   }
 
   return (
-    <div className="card p-5 flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: "rgba(196,154,90,0.12)", border: "1px solid rgba(196,154,90,0.2)" }}
-        >
-          <ScanText className="w-5 h-5" style={{ color: "#c49a5a" }} />
+    <div className="card" style={{ padding:20, display:"flex", flexDirection:"column", gap:16 }}>
+      <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+        <div style={{ width:40, height:40, borderRadius:12, background:"rgba(196,154,90,0.1)", border:"1px solid rgba(196,154,90,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <ScanText style={{ width:18, height:18, color:"var(--gold)" }} />
         </div>
         <div>
-          <h3 className="font-black text-base" style={{ color: "#0d1b2a" }}>فحص قبل التنفيذ</h3>
-          <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#8090a0" }}>
-            الصق رسالة، رابط، أو تفاصيل تحويل مشبوه للتحليل الفوري.
-          </p>
+          <h3 style={{ fontWeight:900, fontSize:15, color:"var(--text-primary)", marginBottom:4 }}>{t("scam_title")}</h3>
+          <p style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>{t("scam_desc")}</p>
         </div>
       </div>
 
-      <div style={{ height: 1, background: "#edf0f4" }} />
+      <div style={{ height:1, background:"var(--border-subtle)" }} />
 
-      {/* Input */}
-      <div className="relative">
+      <div style={{ position:"relative" }}>
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => setText(e.target.value.slice(0, 500))}
           rows={4}
-          placeholder="مثال: عزيزي العميل، تم رصد نشاط مريب. أرسل رمز OTP لإيقاف الإجراء..."
+          placeholder={t("scam_placeholder")}
           className="input-field"
-          style={{ resize: "none", paddingBottom: 28 }}
+          style={{ resize:"none", paddingBottom:28 }}
         />
-        <div
-          className="absolute bottom-2 left-3 text-xs"
-          style={{ color: charCount > 400 ? "#c0392b" : "#a0aab4" }}
-        >
-          {charCount} / 500
-        </div>
+        <span style={{ position:"absolute", bottom:10, insetInlineStart:14, fontSize:11, color: text.length > 450 ? "var(--red)" : "var(--text-muted)" }}>
+          {text.length} / 500
+        </span>
       </div>
 
-      {/* Loading state */}
       {loading && (
-        <div
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
-          style={{ background: "rgba(196,154,90,0.07)", border: "1px solid rgba(196,154,90,0.15)" }}
-        >
-          <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: "#c49a5a" }} />
-          <span style={{ color: "#8a6030" }}>يعالج النموذج المدخلات ويحسب مؤشر الخطر...</span>
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:10, background:"rgba(196,154,90,0.07)", border:"1px solid rgba(196,154,90,0.15)", fontSize:13, color:"#8a6030" }}>
+          <Loader2 style={{ width:16, height:16, flexShrink:0, color:"var(--gold)" }} className="animate-spin" />
+          {t("analyzing")}
         </div>
       )}
 
-      <button
-        onClick={handleAnalyze}
-        disabled={loading || !text.trim()}
-        className="btn-primary w-full"
-      >
-        <Sparkles className="w-4 h-4" />
-        {hasResult ? "تحليل نص آخر" : "تحليل بواسطة الذكاء الاصطناعي"}
+      <button onClick={handleAnalyze} disabled={loading || !text.trim()} className="btn-primary" style={{ width:"100%" }}>
+        <Sparkles style={{ width:16, height:16 }} />
+        {hasResult ? t("analyze_another") : t("analyze_ai")}
       </button>
     </div>
   );
