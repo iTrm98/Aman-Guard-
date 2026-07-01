@@ -126,8 +126,7 @@ const T = {
   export_report:      { ar: "تصدير التقرير",                          en: "Export Report" },
   refresh:            { ar: "تحديث",                                  en: "Refresh" },
   export_success_title:{ ar: "تم التصدير بنجاح",                     en: "Export Successful" },
-  export_success_msg:  { ar: "تم تنزيل ملف CSV يحتوي على جميع الحالات النشطة.", en: "A CSV file containing all active cases has been downloaded." },
-
+  export_success_msg: { ar: "تم تنزيل ملف Excel يحتوي على جميع الحالات النشطة.", en: "An Excel file containing all active cases has been downloaded." },
   // ── Case Detail Panel ────────────────────────────────────────────────────
   case_detail_title:  { ar: "تفاصيل الحالة",                en: "Case Details" },
   case_id:            { ar: "رقم البلاغ",                   en: "Report ID" },
