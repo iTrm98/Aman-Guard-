@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Download, RefreshCw } from "lucide-react";
+import * as XLSX from "xlsx";
 import StatsCards      from "../components/bank/StatsCards";
 import CasesTable      from "../components/bank/CasesTable";
 import CaseDetailPanel from "../components/bank/CaseDetailPanel";
@@ -32,16 +33,31 @@ export default function BankView({ injectedCase }) {
   }, [injectedCase]);
 
   function handleExport() {
-    // Build CSV and trigger download
-    const headers = ["ID", "Customer", "Pattern", "Risk Score", "Risk Level", "Status", "Time"];
-    const rows = cases.map(c => [c.id, c.customerName, `"${c.fraudPattern}"`, c.riskScore, c.riskLevel, c.accountStatus, c.timeAgo]);
-    const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type:"text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url; a.download = `amanguard-cases-${Date.now()}.csv`; a.click();
-    URL.revokeObjectURL(url);
-    showModal({ title:t("export_success_title"), message:t("export_success_msg"), type:"success" });
+    const data = cases.map(c => ({
+      "رقم البلاغ":   c.id,
+      "العميل":       c.customerName,
+      "نمط الاحتيال": c.fraudPattern,
+      "درجة الخطر":   c.riskScore,
+      "مستوى الخطر":  c.riskLevel,
+      "حالة الحساب":  c.accountStatus,
+      "الوقت":        c.timeAgo,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+
+    // Auto-fit column widths
+    const cols = Object.keys(data[0] ?? {});
+    ws["!cols"] = cols.map((col) => {
+      const maxLen = Math.max(col.length, ...data.map((row) => String(row[col] ?? "").length));
+      return { wch: Math.min(Math.max(maxLen + 4, 16), 60) };
+    });
+
+    // Row heights
+    ws["!rows"] = [{ hpt: 22 }, ...data.map(() => ({ hpt: 20 }))];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الحالات");
+    XLSX.writeFile(wb, `amanguard-cases-${Date.now()}.xlsx`);
+    showModal({ title: t("export_success_title"), message: t("export_success_msg"), type: "success" });
   }
 
   function handleCaseAction(action, caseData) {
@@ -61,7 +77,7 @@ export default function BankView({ injectedCase }) {
         />
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
           <p style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.1em", color:"var(--gold)" }}>{t("live_monitoring")}</p>
           <h2 style={{ fontSize:20, fontWeight:900, color:"var(--text-primary)", marginTop:2 }}>{t("bank_page_title")}</h2>
