@@ -13,12 +13,12 @@ export default function AccountCard() {
   ];
 
   return (
-    <div style={{ position:"relative", overflow:"hidden", borderRadius:20, padding:24, color:"#fff", background:"linear-gradient(135deg,#0d1b2a 0%,#162032 55%,#1e2d42 100%)", border:"1px solid #1e2f42", minHeight:180 }}>
+    <div className="p-4 sm:p-6" style={{ position:"relative", overflow:"hidden", borderRadius:20, color:"#fff", background:"linear-gradient(135deg,#0d1b2a 0%,#162032 55%,#1e2d42 100%)", border:"1px solid #1e2f42", minHeight:180 }}>
       <div style={{ position:"absolute", top:-48, insetInlineEnd:-48, width:192, height:192, borderRadius:"50%", background:"#c49a5a", opacity:0.08 }} />
       <div style={{ position:"absolute", bottom:-32, insetInlineStart:96, width:128, height:128, borderRadius:"50%", background:"#c49a5a", opacity:0.04 }} />
 
-      <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-        <div style={{ flex:1 }}>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4" style={{ position:"relative" }}>
+        <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
             <span className="live-dot" />
             <span style={{ fontSize:12, fontWeight:600, color:"#8da0b3" }}>{t("account_main")}</span>
@@ -58,7 +58,7 @@ export default function AccountCard() {
       </div>
 
       {/* Stats row */}
-      <div style={{ position:"relative", marginTop:20, paddingTop:16, display:"flex", gap:32, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+      <div className="flex flex-wrap gap-6 sm:gap-8" style={{ position:"relative", marginTop:20, paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
         {stats.map(({ labelKey, value, noteKey }) => (
           <div key={labelKey}>
             <p style={{ fontSize:11, color:"#4a6070" }}>{t(labelKey)}</p>

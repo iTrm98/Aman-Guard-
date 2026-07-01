@@ -11,8 +11,9 @@ import { useApp } from "./context/useApp";
 
 function AppShell() {
   const { modal, closeModal, showModal, panel, closePanel, t } = useApp();
-  const [view,       setView]       = useState("customer");
-  const [frozenCase, setFrozenCase] = useState(null);
+  const [view,          setView]          = useState("customer");
+  const [frozenCase,    setFrozenCase]    = useState(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   function handleFreezeRequest(caseId) {
     showModal({
@@ -48,17 +49,22 @@ function AppShell() {
   }
 
   return (
-    <div style={{ display:"flex", height:"100vh", overflow:"hidden" }}>
+    <div className="flex h-screen overflow-hidden">
       <Modal {...modal} onClose={closeModal} />
 
       {panel?.type === "notifications" && <NotificationsPanel onClose={closePanel} />}
       {panel?.type === "settings"      && <SettingsPanel      onClose={closePanel} />}
 
-      <Sidebar view={view} onSwitchView={setView} />
+      <Sidebar
+        view={view}
+        onSwitchView={setView}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
+      />
 
       <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, overflow:"hidden" }}>
-        <Topbar view={view} />
-        <main style={{ flex:1, overflowY:"auto", padding:"20px 28px", background:"var(--bg-app)", transition:"background 0.25s" }}>
+        <Topbar view={view} onOpenMobileNav={() => setMobileNavOpen(true)} />
+        <main className="p-4 sm:p-5 md:p-7" style={{ flex:1, overflowY:"auto", background:"var(--bg-app)", transition:"background 0.25s" }}>
           <div style={{ maxWidth:1080, margin:"0 auto" }}>
             {view === "customer"
               ? <CustomerView onFreezeRequest={handleFreezeRequest} />

@@ -32,7 +32,7 @@ export default function RiskReport({ result, onFreezeRequest }) {
   return (
     <div style={{ borderRadius:16, overflow:"hidden", border:`1.5px solid ${riskBorder}`, background:"var(--bg-surface)" }} className="animate-slide-up">
       {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 20px", background:riskBg, borderBottom:`1px solid ${riskBorder}` }}>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5" style={{ paddingTop:14, paddingBottom:14, background:riskBg, borderBottom:`1px solid ${riskBorder}` }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <AlertTriangle style={{ width:18, height:18, color:riskColor }} />
           <div>
@@ -52,7 +52,7 @@ export default function RiskReport({ result, onFreezeRequest }) {
       </div>
 
       {expanded && (
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, padding:20 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-4 sm:p-5">
           {/* Findings */}
           <div>
             <p style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:12 }}>{t("report_findings")}</p>

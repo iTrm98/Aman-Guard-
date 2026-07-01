@@ -1,7 +1,7 @@
-import { ShieldCheck, LayoutDashboard, Bell, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 
-export default function Sidebar({ view, onSwitchView }) {
+export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile }) {
   const { t, lang, unreadCount, openPanel, showModal } = useApp();
 
   const NAV = [
@@ -19,20 +19,43 @@ export default function Sidebar({ view, onSwitchView }) {
     });
   }
 
+  function handleSwitchView(id) {
+    onSwitchView(id);
+    onCloseMobile?.();
+  }
+
   return (
-    <aside style={{ width:230, background:"#101e2e", borderInlineStart:"1px solid #1e2f42", display:"flex", flexDirection:"column", height:"100%", flexShrink:0 }}>
+    <>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={onCloseMobile} />
+      )}
+      <aside
+        className={
+          "fixed md:static inset-y-0 start-0 z-50 w-[230px] max-w-[85vw] h-full shrink-0 transition-transform duration-300 ease-in-out " +
+          (mobileOpen ? "translate-x-0" : "max-md:-translate-x-full max-md:rtl:translate-x-full")
+        }
+        style={{ background:"#101e2e", borderInlineStart:"1px solid #1e2f42", display:"flex", flexDirection:"column" }}
+      >
       {/* Logo */}
       <div style={{ padding:"20px 20px 18px", borderBottom:"1px solid #1e2f42" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#c49a5a,#e8c27a)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
             <ShieldCheck style={{ width:20, height:20, color:"#fff" }} />
           </div>
-          <div>
+          <div style={{ flex:1 }}>
             <p style={{ color:"#fff", fontWeight:900, fontSize:18, lineHeight:1, letterSpacing:"0.02em" }}>
               Aman<span style={{ color:"#c49a5a" }}>Guard</span>
             </p>
             <p style={{ color:"#304050", fontSize:11, marginTop:3 }}>{t("brand_sub")}</p>
           </div>
+          <button
+            onClick={onCloseMobile}
+            className="md:hidden"
+            aria-label={t("settings")}
+            style={{ background:"#0a1620", border:"1px solid #1e2f42", borderRadius:8, padding:6, cursor:"pointer", color:"#8da0b3", flexShrink:0 }}
+          >
+            <X style={{ width:14, height:14 }} />
+          </button>
         </div>
       </div>
 
@@ -48,7 +71,7 @@ export default function Sidebar({ view, onSwitchView }) {
         {NAV.map(({ id, labelKey, Icon }) => (
           <button
             key={id}
-            onClick={() => onSwitchView(id)}
+            onClick={() => handleSwitchView(id)}
             className={`sidebar-item${view === id ? " active" : ""}`}
           >
             <Icon style={{ width:16, height:16, flexShrink:0 }} />
@@ -95,6 +118,7 @@ export default function Sidebar({ view, onSwitchView }) {
           </div>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

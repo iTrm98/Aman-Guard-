@@ -12,13 +12,13 @@ export default function StatsCards({ stats }) {
   ];
 
   if (!stats) return (
-    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
       {[0,1,2,3].map(i => <div key={i} className="card" style={{ height:110, background:"var(--bg-subtle)", animation:"pulseSoft 1.5s ease-in-out infinite" }} />)}
     </div>
   );
 
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
       {CARDS.map(({ key, labelKey, subKey, trendKey, Icon, accent, bg, border }) => (
         <div key={key} style={{ borderRadius:14, padding:18, background:"var(--bg-surface)", border:`1.5px solid ${border}`, transition:"box-shadow 0.2s" }} className="card">
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>

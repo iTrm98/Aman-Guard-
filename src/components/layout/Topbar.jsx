@@ -1,7 +1,7 @@
-import { Search, Bell, Sun, Moon } from "lucide-react";
+import { Search, Bell, Sun, Moon, Menu } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 
-export default function Topbar({ view }) {
+export default function Topbar({ view, onOpenMobileNav }) {
   const { t, theme, toggleTheme, lang, toggleLang, unreadCount, openPanel } = useApp();
 
   const titles = {
@@ -11,15 +11,25 @@ export default function Topbar({ view }) {
   const { main, sub } = titles[view] ?? titles.customer;
 
   return (
-    <header style={{ height:64, background:"var(--bg-surface)", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 24px", flexShrink:0, transition:"background 0.25s" }}>
-      <div>
-        <h1 style={{ fontWeight:900, fontSize:17, color:"var(--text-primary)", lineHeight:1.2 }}>{main}</h1>
-        <p style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{sub}</p>
+    <header className="px-3 sm:px-4 md:px-6" style={{ height:64, background:"var(--bg-surface)", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexShrink:0, transition:"background 0.25s" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+        <button
+          onClick={onOpenMobileNav}
+          className="md:hidden"
+          aria-label="menu"
+          style={{ width:36, height:36, borderRadius:10, background:"var(--bg-subtle)", border:"1.5px solid var(--border)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--text-secondary)", flexShrink:0 }}
+        >
+          <Menu style={{ width:16, height:16 }} />
+        </button>
+        <div style={{ minWidth:0 }}>
+          <h1 style={{ fontWeight:900, fontSize:17, color:"var(--text-primary)", lineHeight:1.2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{main}</h1>
+          <p className="hidden sm:block" style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{sub}</p>
+        </div>
       </div>
 
       <div style={{ display:"flex", alignItems:"center", gap:10 }}>
         {/* Search */}
-        <div style={{ position:"relative" }}>
+        <div className="hidden lg:block" style={{ position:"relative" }}>
           <Search style={{ width:14, height:14, position:"absolute", insetInlineEnd:12, top:"50%", transform:"translateY(-50%)", color:"var(--text-muted)", pointerEvents:"none" }} />
           <input
             placeholder={t("quick_search")}
@@ -61,7 +71,7 @@ export default function Topbar({ view }) {
         </button>
 
         {/* System status */}
-        <div style={{ display:"flex", alignItems:"center", gap:7, padding:"5px 12px", borderRadius:10, background:"rgba(26,122,74,0.1)", border:"1px solid rgba(26,122,74,0.25)", fontSize:12, fontWeight:700, color:"var(--green)" }}>
+        <div className="hidden lg:flex" style={{ alignItems:"center", gap:7, padding:"5px 12px", borderRadius:10, background:"rgba(26,122,74,0.1)", border:"1px solid rgba(26,122,74,0.25)", fontSize:12, fontWeight:700, color:"var(--green)" }}>
           <span className="live-dot" />
           {t("system_active")}
         </div>

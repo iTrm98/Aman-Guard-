@@ -40,7 +40,7 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
   return (
     <div className="card" style={{ overflow:"hidden" }}>
       {/* Controls */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 18px", borderBottom:"1px solid var(--border-subtle)", background:"var(--bg-subtle)" }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style={{ padding:"12px 18px", borderBottom:"1px solid var(--border-subtle)", background:"var(--bg-subtle)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <span className="live-dot" />
           <p style={{ fontWeight:900, fontSize:14, color:"var(--text-primary)" }}>{t("cases_title")}</p>
@@ -48,11 +48,11 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
             {filtered.length} {t("cases_count")}
           </span>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <div style={{ position:"relative" }}>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-full sm:w-[190px]" style={{ position:"relative" }}>
             <Search style={{ width:13, height:13, position:"absolute", insetInlineEnd:10, top:"50%", transform:"translateY(-50%)", color:"var(--text-muted)", pointerEvents:"none" }} />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t("search_ph")} className="input-field"
-              style={{ width:190, paddingTop:6, paddingBottom:6, paddingInlineEnd:32, fontSize:13 }} />
+              style={{ paddingTop:6, paddingBottom:6, paddingInlineEnd:32, fontSize:13 }} />
           </div>
           <button onClick={onRefresh} className="btn-ghost" style={{ padding:"6px 10px" }} title="Refresh">
             <RefreshCw style={{ width:14, height:14 }} />
@@ -66,7 +66,7 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
 
       {/* Table */}
       <div style={{ overflowX:"auto" }}>
-        <table style={{ width:"100%", textAlign:"right", fontSize:13, borderCollapse:"collapse" }}>
+        <table style={{ width:"100%", minWidth:720, textAlign:"right", fontSize:13, borderCollapse:"collapse" }}>
           <thead>
             <tr style={{ borderBottom:"1px solid var(--border-subtle)" }}>
               {COLS.map(({ label, col }) => (

@@ -61,7 +61,7 @@ export default function BankView({ injectedCase }) {
         />
       )}
 
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <p style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.1em", color:"var(--gold)" }}>{t("live_monitoring")}</p>
           <h2 style={{ fontSize:20, fontWeight:900, color:"var(--text-primary)", marginTop:2 }}>{t("bank_page_title")}</h2>

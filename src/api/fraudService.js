@@ -22,6 +22,14 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * GET /call-status
+ * Request:  none
+ * Response: {
+ *   hasActiveOfficialCall: boolean,  // true if the bank has an official call in progress with this customer right now
+ *   message: string,                 // localized guidance to show the customer
+ * }
+ */
 export async function checkCallStatus() {
   if (isMockMode()) {
     await delay(1200);
@@ -36,6 +44,19 @@ export async function checkCallStatus() {
   }
 }
 
+/**
+ * POST /analyze
+ * Request:  { text: string }         // pasted message/link, max 500 chars (enforced client-side in ScamChecker)
+ * Response: {
+ *   riskScore: number,                // 0-100
+ *   riskLevel: "critical" | "high" | "medium",
+ *   riskLabel: string,                 // localized display label, e.g. "حرج (Critical)"
+ *   findings: [{ title: string, detail: string }],
+ *   recommendation: string,
+ *   interruptionQuestions: [{ id: string, text: string }],
+ *   caseId: string | null,            // set when the backend opens a bank-side case for this analysis
+ * }
+ */
 export async function analyzeText(text) {
   if (isMockMode()) {
     await delay(1800);
@@ -50,6 +71,18 @@ export async function analyzeText(text) {
   }
 }
 
+/**
+ * POST /freeze
+ * Request:  {
+ *   caseId: string | null,   // RiskReport.caseId when freezing off an AI analysis, or an existing bank case id
+ *   reason: string,          // e.g. "customer_initiated"
+ * }
+ * Response: {
+ *   success: boolean,
+ *   reportNumber: string,    // e.g. "FR-9022", surfaced to the customer and used as the bank-side case id
+ *   message: string,
+ * }
+ */
 export async function freezeAccount({ caseId, reason } = {}) {
   const fallbackReportNumber = `FR-${9022 + Math.floor(Math.random() * 50)}`;
   if (isMockMode()) {
@@ -65,6 +98,27 @@ export async function freezeAccount({ caseId, reason } = {}) {
   }
 }
 
+/**
+ * GET /cases/active
+ * Request:  none
+ * Response: {
+ *   stats: {
+ *     criticalToday: number,
+ *     suspectedCases: number,
+ *     accountsFrozen: number,
+ *     amountSaved: string,          // pre-formatted with thousands separators, e.g. "1,240,500"
+ *   },
+ *   cases: [{
+ *     id: string,                   // e.g. "FR-9021"
+ *     timeAgo: string,               // pre-formatted relative time, localized server-side
+ *     customerName: string,
+ *     fraudPattern: string,
+ *     riskScore: number,             // 0-100
+ *     riskLevel: "critical" | "high" | "medium",
+ *     accountStatus: "active" | "partially_restricted" | "frozen",
+ *   }],
+ * }
+ */
 export async function getActiveCases() {
   if (isMockMode()) {
     await delay(500);
