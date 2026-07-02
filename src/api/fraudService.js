@@ -12,6 +12,10 @@
 //   GET   /notifications                 (NotificationsController)
 //   PATCH /notifications/{id}/read       (NotificationsController)
 //   PATCH /notifications/read-all        (NotificationsController)
+//   POST  /transactions/analyze          (TransactionAnalysisController)
+//   POST  /transactions/{id}/confirm     (TransactionAnalysisController)
+//   POST  /transactions/{id}/cancel      (TransactionAnalysisController)
+//   GET   /config/thresholds             (ConfigController)
 //
 // Every function calls the backend directly. There is no mock fallback —
 // failures throw an ApiError and the calling component is responsible for
@@ -29,11 +33,12 @@ export async function getAccountInfo() {
 }
 
 /**
- * GET /call-status?phoneNumber=...
+ * GET /call-status — no parameters. The backend checks the current user's
+ * registered phone number against its active-calls registry server-side.
  * Response: { hasActiveOfficialCall: boolean, message: string }
  */
-export async function checkCallStatus(phoneNumber) {
-  return apiClient.get("/call-status", { params: { phoneNumber } });
+export async function checkCallStatus() {
+  return apiClient.get("/call-status");
 }
 
 /**
@@ -154,4 +159,46 @@ export async function markNotificationRead(notificationId) {
  */
 export async function markAllNotificationsRead() {
   return apiClient.patch("/notifications/read-all");
+}
+
+/**
+ * POST /transactions/analyze — real-time purchase risk gating.
+ * Request:  { merchantName, amount, currency, merchantUrl, transactionType, accountId }
+ * Response: {
+ *   transactionId, riskScore, riskLevel, riskLabelAr, riskLabelEn,
+ *   action: "allowed" | "suspended" | "blocked",
+ *   findings: [{ titleAr, titleEn, detailAr, detailEn }],
+ *   recommendationAr, recommendationEn,
+ *   reportNumber,   // set only when blocked, null otherwise
+ * }
+ */
+export async function analyzeTransaction(body) {
+  return apiClient.post("/transactions/analyze", body);
+}
+
+/**
+ * POST /transactions/{id}/confirm — customer approves a suspended purchase.
+ * Response: { success, message, caseId: null }
+ */
+export async function confirmTransaction(transactionId) {
+  return apiClient.post(`/transactions/${transactionId}/confirm`);
+}
+
+/**
+ * POST /transactions/{id}/cancel — customer stops a suspended purchase.
+ * The backend creates a "محاولة شراء غير مصرحة" fraud case and returns its id
+ * so the caller can run the emergency freeze flow (POST /freeze needs caseId).
+ * Response: { success, message, caseId }
+ */
+export async function cancelTransaction(transactionId) {
+  return apiClient.post(`/transactions/${transactionId}/cancel`);
+}
+
+/**
+ * GET /config/thresholds — server-side fraud config, read-only in the UI
+ * (shown to bank officers in SettingsPanel; never a customer form field).
+ * Response: { maxPurchaseAmount: number, currency: string }
+ */
+export async function getThresholds() {
+  return apiClient.get("/config/thresholds");
 }

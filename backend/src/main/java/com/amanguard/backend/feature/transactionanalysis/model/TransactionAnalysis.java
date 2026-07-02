@@ -14,11 +14,17 @@ public class TransactionAnalysis {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(
-            name = "fraud_case_id",
-            nullable = false
-    )
+    // Set only when the analysis produced a fraud case (blocked purchases,
+    // or a customer stopping a suspended purchase).
+    @Column(name = "fraud_case_id")
     private Long fraudCaseId;
+
+    @Column(
+            name = "merchant_name",
+            nullable = false,
+            length = 200
+    )
+    private String merchantName;
 
     @Column(
             nullable = false,
@@ -27,35 +33,14 @@ public class TransactionAnalysis {
     )
     private BigDecimal amount;
 
-    @Column(
-            name = "new_beneficiary",
-            nullable = false
-    )
-    private boolean newBeneficiary;
+    @Column(length = 10)
+    private String currency;
 
-    @Column(
-            name = "caller_requested_transfer",
-            nullable = false
-    )
-    private boolean callerRequestedTransfer;
+    @Column(name = "merchant_url", length = 500)
+    private String merchantUrl;
 
-    @Column(
-            name = "otp_requested",
-            nullable = false
-    )
-    private boolean otpRequested;
-
-    @Column(
-            name = "urgent_request",
-            nullable = false
-    )
-    private boolean urgentRequest;
-
-    @Column(
-            name = "unusual_time",
-            nullable = false
-    )
-    private boolean unusualTime;
+    @Column(name = "transaction_type", length = 50)
+    private String transactionType;
 
     @Column(
             name = "risk_score",
@@ -70,11 +55,17 @@ public class TransactionAnalysis {
     )
     private RiskLevel riskLevel;
 
-    @Column(
-            nullable = false,
-            length = 1000
-    )
-    private String recommendation;
+    // "allowed" | "suspended" | "blocked"
+    @Column(nullable = false, length = 20)
+    private String action;
+
+    // Customer decision on a suspended transaction:
+    // null | "confirmed" | "cancelled"
+    @Column(length = 20)
+    private String resolution;
+
+    @Column(name = "report_number", length = 30)
+    private String reportNumber;
 
     @Column(
             name = "created_at",
@@ -86,32 +77,44 @@ public class TransactionAnalysis {
     }
 
     public TransactionAnalysis(
-            Long fraudCaseId,
+            String merchantName,
             BigDecimal amount,
-            boolean newBeneficiary,
-            boolean callerRequestedTransfer,
-            boolean otpRequested,
-            boolean urgentRequest,
-            boolean unusualTime,
+            String currency,
+            String merchantUrl,
+            String transactionType,
             int riskScore,
             RiskLevel riskLevel,
-            String recommendation
+            String action
     ) {
-        this.fraudCaseId = fraudCaseId;
+        this.merchantName = merchantName;
         this.amount = amount;
-        this.newBeneficiary = newBeneficiary;
-        this.callerRequestedTransfer = callerRequestedTransfer;
-        this.otpRequested = otpRequested;
-        this.urgentRequest = urgentRequest;
-        this.unusualTime = unusualTime;
+        this.currency = currency;
+        this.merchantUrl = merchantUrl;
+        this.transactionType = transactionType;
         this.riskScore = riskScore;
         this.riskLevel = riskLevel;
-        this.recommendation = recommendation;
+        this.action = action;
     }
 
     @PrePersist
     public void beforeSave() {
         createdAt = LocalDateTime.now();
+    }
+
+    public void attachFraudCase(
+            Long fraudCaseId,
+            String reportNumber
+    ) {
+        this.fraudCaseId = fraudCaseId;
+        this.reportNumber = reportNumber;
+    }
+
+    public void confirmByCustomer() {
+        resolution = "confirmed";
+    }
+
+    public void cancelByCustomer() {
+        resolution = "cancelled";
     }
 
     public Long getId() {
@@ -122,28 +125,24 @@ public class TransactionAnalysis {
         return fraudCaseId;
     }
 
+    public String getMerchantName() {
+        return merchantName;
+    }
+
     public BigDecimal getAmount() {
         return amount;
     }
 
-    public boolean isNewBeneficiary() {
-        return newBeneficiary;
+    public String getCurrency() {
+        return currency;
     }
 
-    public boolean isCallerRequestedTransfer() {
-        return callerRequestedTransfer;
+    public String getMerchantUrl() {
+        return merchantUrl;
     }
 
-    public boolean isOtpRequested() {
-        return otpRequested;
-    }
-
-    public boolean isUrgentRequest() {
-        return urgentRequest;
-    }
-
-    public boolean isUnusualTime() {
-        return unusualTime;
+    public String getTransactionType() {
+        return transactionType;
     }
 
     public int getRiskScore() {
@@ -154,8 +153,16 @@ public class TransactionAnalysis {
         return riskLevel;
     }
 
-    public String getRecommendation() {
-        return recommendation;
+    public String getAction() {
+        return action;
+    }
+
+    public String getResolution() {
+        return resolution;
+    }
+
+    public String getReportNumber() {
+        return reportNumber;
     }
 
     public LocalDateTime getCreatedAt() {

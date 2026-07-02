@@ -19,6 +19,10 @@ C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\callverification\repository\BankCallRepository.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\callverification\service\CallVerificationService.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\callverification\service\impl\CallVerificationServiceImpl.java
+C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\config\controller\ConfigController.java
+C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\config\dto\response\ThresholdsResponse.java
+C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\config\service\FraudConfigService.java
+C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\config\service\impl\FraudConfigServiceImpl.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\customers\config\CustomerDataInitializer.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\customers\controller\CustomerController.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\customers\dto\response\CustomerResponse.java
@@ -64,12 +68,12 @@ C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\controller\TransactionAnalysisController.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\dto\request\AnalyzeTransactionRequest.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\dto\response\AnalyzeTransactionResponse.java
+C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\dto\response\TransactionDecisionResponse.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\dto\response\TransactionRiskFindingResponse.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\model\TransactionAnalysis.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\repository\TransactionAnalysisRepository.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\service\impl\TransactionAnalysisServiceImpl.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\service\TransactionAnalysisService.java
-C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\transactionanalysis\TransactionAnalysis.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\verification\controller\VerificationController.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\verification\dto\request\EvaluateVerificationRequest.java
 C:\Users\moh11\Documents\Aman-Guard\backend\src\main\java\com\amanguard\backend\feature\verification\dto\request\VerificationAnswerRequest.java

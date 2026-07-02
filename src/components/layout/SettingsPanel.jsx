@@ -1,8 +1,23 @@
-import { X, Settings, Sun, Moon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Settings, Sun, Moon, ShieldAlert } from "lucide-react";
+import { getThresholds } from "../../api/fraudService";
 import { useApp } from "../../context/AppContext";
 
-export default function SettingsPanel({ onClose }) {
+export default function SettingsPanel({ onClose, view }) {
   const { t, theme, toggleTheme, lang, toggleLang } = useApp();
+  // Risk thresholds are bank-officer information — fetched (never hardcoded)
+  // and shown read-only, only when the panel is opened from the bank view.
+  const showRiskSettings = view === "bank";
+  const [thresholds, setThresholds] = useState(null);
+
+  useEffect(() => {
+    if (!showRiskSettings) return;
+    let cancelled = false;
+    getThresholds()
+      .then((data) => { if (!cancelled) setThresholds(data); })
+      .catch((err) => console.error("Failed to load risk thresholds:", err));
+    return () => { cancelled = true; };
+  }, [showRiskSettings]);
 
   return (
     <>
@@ -72,6 +87,28 @@ export default function SettingsPanel({ onClose }) {
               ))}
             </div>
           </Section>
+
+          {/* Risk settings — bank view only, read-only server configuration */}
+          {showRiskSettings && (
+            <Section label={t("risk_settings")}>
+              <div style={{ background:"var(--bg-subtle)", border:"1px solid var(--border)", borderRadius:12, padding:14 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, fontSize:13 }}>
+                  <span style={{ display:"flex", alignItems:"center", gap:8, color:"var(--text-muted)" }}>
+                    <ShieldAlert style={{ width:14, height:14, color:"var(--gold)", flexShrink:0 }} />
+                    {t("max_purchase_limit")}
+                  </span>
+                  <span style={{ color:"var(--text-primary)", fontWeight:700, whiteSpace:"nowrap" }}>
+                    {thresholds
+                      ? `${Number(thresholds.maxPurchaseAmount).toLocaleString(lang === "en" ? "en-US" : "ar-SA")} ${t("sar")}`
+                      : "…"}
+                  </span>
+                </div>
+                <p style={{ fontSize:11, lineHeight:1.6, color:"var(--text-muted)", marginTop:10, paddingTop:10, borderTop:"1px solid var(--border-subtle)" }}>
+                  {t("threshold_server_note")}
+                </p>
+              </div>
+            </Section>
+          )}
 
           {/* About */}
           <Section label="AmanGuard">

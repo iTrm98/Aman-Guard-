@@ -1,17 +1,17 @@
 package com.amanguard.backend.feature.transactionanalysis.dto.response;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 public record AnalyzeTransactionResponse(
-        Long analysisId,
-        Long caseId,
-        BigDecimal amount,
+        Long transactionId,
         int riskScore,
         String riskLevel,
-        String riskLabel,
+        String riskLabelAr,
+        String riskLabelEn,
+        String action,
         List<TransactionRiskFindingResponse> findings,
-        String recommendation,
-        boolean verificationRequired
+        String recommendationAr,
+        String recommendationEn,
+        String reportNumber
 ) {
 }

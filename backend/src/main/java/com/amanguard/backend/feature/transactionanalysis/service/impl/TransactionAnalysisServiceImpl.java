@@ -1,46 +1,105 @@
 package com.amanguard.backend.feature.transactionanalysis.service.impl;
 
+import com.amanguard.backend.common.exception.BadRequestException;
+import com.amanguard.backend.common.exception.ResourceNotFoundException;
+import com.amanguard.backend.feature.emergencyfreeze.dto.response.FreezeAccountResponse;
+import com.amanguard.backend.feature.emergencyfreeze.service.EmergencyFreezeService;
 import com.amanguard.backend.feature.fraudanalysis.model.FraudCase;
 import com.amanguard.backend.feature.fraudanalysis.model.RiskLevel;
 import com.amanguard.backend.feature.fraudanalysis.repository.FraudCaseRepository;
+import com.amanguard.backend.feature.notifications.model.Notification;
+import com.amanguard.backend.feature.notifications.repository.NotificationRepository;
 import com.amanguard.backend.feature.transactionanalysis.dto.request.AnalyzeTransactionRequest;
 import com.amanguard.backend.feature.transactionanalysis.dto.response.AnalyzeTransactionResponse;
+import com.amanguard.backend.feature.transactionanalysis.dto.response.TransactionDecisionResponse;
 import com.amanguard.backend.feature.transactionanalysis.dto.response.TransactionRiskFindingResponse;
 import com.amanguard.backend.feature.transactionanalysis.model.TransactionAnalysis;
 import com.amanguard.backend.feature.transactionanalysis.repository.TransactionAnalysisRepository;
 import com.amanguard.backend.feature.transactionanalysis.service.TransactionAnalysisService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 public class TransactionAnalysisServiceImpl
         implements TransactionAnalysisService {
 
-    private static final int MAX_RISK_SCORE = 100;
+    private static final String BLOCKED_PURCHASE_PATTERN =
+            "شراء إلكتروني محظور";
 
-    private static final BigDecimal MEDIUM_AMOUNT =
-            new BigDecimal("5000");
+    private static final String UNAUTHORIZED_PURCHASE_PATTERN =
+            "محاولة شراء غير مصرحة";
 
-    private static final BigDecimal HIGH_AMOUNT =
-            new BigDecimal("10000");
+    // TODO: replace with real AI engine — URL keyword heuristics common in
+    // phishing / fraudulent merchant sites.
+    private static final List<String> SUSPICIOUS_URL_KEYWORDS = List.of(
+            "fake", "phish", "scam", "secure-login",
+            "verify-account", "free-gift", "prize"
+    );
+
+    // TODO: replace with real AI engine — demo whitelist standing in for an
+    // approved-merchants database (English + normalized Arabic aliases).
+    private static final Set<String> KNOWN_MERCHANTS = Set.of(
+            "amazon", "امازون",
+            "noon", "نون",
+            "jarir", "جرير",
+            "extra", "اكسترا",
+            "stc",
+            "zain", "زين",
+            "mobily", "موبايلي",
+            "apple", "ابل",
+            "google", "جوجل",
+            "microsoft", "مايكروسوفت",
+            "samsung", "سامسونج"
+    );
+
+    // Hard purchase limit — backend configuration only
+    // (amanguard.fraud.max-purchase-amount). Never exposed as a customer
+    // form field; bank officers see it read-only via GET /api/config/thresholds.
+    @Value("${amanguard.fraud.max-purchase-amount:5000}")
+    private BigDecimal maxPurchaseAmount;
 
     private final TransactionAnalysisRepository transactionAnalysisRepository;
     private final FraudCaseRepository fraudCaseRepository;
+    private final NotificationRepository notificationRepository;
+    private final EmergencyFreezeService emergencyFreezeService;
 
     public TransactionAnalysisServiceImpl(
             TransactionAnalysisRepository transactionAnalysisRepository,
-            FraudCaseRepository fraudCaseRepository
+            FraudCaseRepository fraudCaseRepository,
+            NotificationRepository notificationRepository,
+            EmergencyFreezeService emergencyFreezeService
     ) {
         this.transactionAnalysisRepository =
                 transactionAnalysisRepository;
 
         this.fraudCaseRepository =
                 fraudCaseRepository;
+
+        this.notificationRepository =
+                notificationRepository;
+
+        this.emergencyFreezeService =
+                emergencyFreezeService;
+    }
+
+    // Outcome of the mock rule evaluation, before persistence.
+    private record RuleOutcome(
+            int riskScore,
+            RiskLevel riskLevel,
+            String riskLabelAr,
+            String riskLabelEn,
+            String action,
+            List<TransactionRiskFindingResponse> findings,
+            String recommendationAr,
+            String recommendationEn
+    ) {
     }
 
     @Override
@@ -48,113 +107,45 @@ public class TransactionAnalysisServiceImpl
     public AnalyzeTransactionResponse analyze(
             AnalyzeTransactionRequest request
     ) {
-        int riskScore = 0;
-
-        List<TransactionRiskFindingResponse> findings =
-                new ArrayList<>();
-
-        if (request.newBeneficiary()) {
-            riskScore += 20;
-
-            findings.add(new TransactionRiskFindingResponse(
-                    "مستفيد جديد",
-                    "التحويل إلى مستفيد جديد يحتاج تحققًا إضافيًا."
-            ));
-        }
-
-        if (request.callerRequestedTransfer()) {
-            riskScore += 25;
-
-            findings.add(new TransactionRiskFindingResponse(
-                    "طلب التحويل أثناء مكالمة",
-                    "وجود شخص يطلب تنفيذ التحويل أثناء المكالمة مؤشر على الهندسة الاجتماعية."
-            ));
-        }
-
-        if (request.otpRequested()) {
-            riskScore += 35;
-
-            findings.add(new TransactionRiskFindingResponse(
-                    "طلب رمز OTP",
-                    "لا ينبغي مشاركة رمز التحقق مع أي شخص، حتى لو ادعى أنه موظف بنك."
-            ));
-        }
-
-        if (request.urgentRequest()) {
-            riskScore += 15;
-
-            findings.add(new TransactionRiskFindingResponse(
-                    "استعجال في تنفيذ العملية",
-                    "المحتال قد يستخدم الضغط والاستعجال لمنع العميل من التحقق."
-            ));
-        }
-
-        if (request.unusualTime()) {
-            riskScore += 10;
-
-            findings.add(new TransactionRiskFindingResponse(
-                    "وقت عملية غير معتاد",
-                    "تم تنفيذ العملية في وقت غير معتاد مقارنة بالسلوك المتوقع."
-            ));
-        }
-
-        if (request.amount().compareTo(HIGH_AMOUNT) >= 0) {
-            riskScore += 20;
-
-            findings.add(new TransactionRiskFindingResponse(
-                    "مبلغ تحويل مرتفع",
-                    "قيمة التحويل تساوي أو تتجاوز 10,000 ريال."
-            ));
-        } else if (request.amount().compareTo(MEDIUM_AMOUNT) >= 0) {
-            riskScore += 10;
-
-            findings.add(new TransactionRiskFindingResponse(
-                    "مبلغ يحتاج تحققًا",
-                    "قيمة التحويل تساوي أو تتجاوز 5,000 ريال."
-            ));
-        }
-
-        riskScore = Math.min(
-                riskScore,
-                MAX_RISK_SCORE
-        );
-
-        RiskLevel riskLevel =
-                RiskLevel.fromScore(riskScore);
-
-        if (findings.isEmpty()) {
-            findings.add(new TransactionRiskFindingResponse(
-                    "لا توجد مؤشرات قوية",
-                    "لم يتم اكتشاف مؤشرات خطورة واضحة في بيانات التحويل."
-            ));
-        }
-
-        String recommendation =
-                createRecommendation(riskLevel);
-
-        FraudCase fraudCase = new FraudCase(
-                createFraudCaseSummary(request),
-                riskScore,
-                riskLevel,
-                recommendation
-        );
-
-        FraudCase savedFraudCase =
-                fraudCaseRepository.save(fraudCase);
+        RuleOutcome outcome = evaluateRules(request);
 
         TransactionAnalysis transactionAnalysis =
                 new TransactionAnalysis(
-                        savedFraudCase.getId(),
+                        request.merchantName().trim(),
                         request.amount(),
-                        request.newBeneficiary(),
-                        request.callerRequestedTransfer(),
-                        request.otpRequested(),
-                        request.urgentRequest(),
-                        request.unusualTime(),
-                        riskScore,
-                        riskLevel,
-                        recommendation
+                        request.currency(),
+                        trimToNull(request.merchantUrl()),
+                        trimToNull(request.transactionType()),
+                        outcome.riskScore(),
+                        outcome.riskLevel(),
+                        outcome.action()
                 );
+
+        String reportNumber = null;
+
+        if ("blocked".equals(outcome.action())) {
+            FraudCase savedCase = createBlockedPurchaseCase(
+                    request,
+                    outcome
+            );
+
+            reportNumber = resolveReportNumber(
+                    savedCase,
+                    outcome.riskLevel()
+            );
+
+            transactionAnalysis.attachFraudCase(
+                    savedCase.getId(),
+                    reportNumber
+            );
+
+            notifySoc(
+                    savedCase,
+                    request,
+                    outcome.riskLevel(),
+                    reportNumber
+            );
+        }
 
         TransactionAnalysis savedAnalysis =
                 transactionAnalysisRepository.save(
@@ -163,67 +154,370 @@ public class TransactionAnalysisServiceImpl
 
         return new AnalyzeTransactionResponse(
                 savedAnalysis.getId(),
-                savedFraudCase.getId(),
-                savedAnalysis.getAmount(),
-                savedAnalysis.getRiskScore(),
-                riskLevel.name()
-                        .toLowerCase(Locale.ROOT),
-                createRiskLabel(riskLevel),
-                findings,
-                recommendation,
-                riskScore >= 60
+                outcome.riskScore(),
+                outcome.riskLevel().name().toLowerCase(Locale.ROOT),
+                outcome.riskLabelAr(),
+                outcome.riskLabelEn(),
+                outcome.action(),
+                outcome.findings(),
+                outcome.recommendationAr(),
+                outcome.recommendationEn(),
+                reportNumber
         );
     }
 
-    private String createFraudCaseSummary(
+    // TODO: replace with real AI engine — mock analysis: four sequential
+    // rules, first match wins.
+    //   1. amount > configured max        -> critical, block + freeze
+    //   2. suspicious URL keywords        -> high, block
+    //   3. merchant not in known list     -> medium, suspend for customer
+    //   4. otherwise                      -> low, allow
+    private RuleOutcome evaluateRules(
             AnalyzeTransactionRequest request
     ) {
-        return "تحليل تحويل مالي بقيمة "
-                + request.amount()
-                + " ريال. "
-                + "مستفيد جديد: "
-                + yesOrNo(request.newBeneficiary())
-                + "، طلب المتصل تنفيذ التحويل: "
-                + yesOrNo(request.callerRequestedTransfer())
-                + "، طلب OTP: "
-                + yesOrNo(request.otpRequested())
-                + "، طلب عاجل: "
-                + yesOrNo(request.urgentRequest())
-                + "، وقت غير معتاد: "
-                + yesOrNo(request.unusualTime())
-                + ".";
+        // Rule 1: amount exceeds the configured maximum -> CRITICAL,
+        // blocked and the account frozen immediately, no customer input.
+        if (request.amount().compareTo(maxPurchaseAmount) > 0) {
+            return new RuleOutcome(
+                    95,
+                    RiskLevel.CRITICAL,
+                    "حرج — تجاوز الحد الأقصى المسموح به",
+                    "Critical — Exceeds Maximum Allowed Amount",
+                    "blocked",
+                    List.of(new TransactionRiskFindingResponse(
+                            "تجاوز الحد الأقصى للشراء",
+                            "Transaction Exceeds Purchase Limit",
+                            "المبلغ " + request.amount()
+                                    + " ر.س يتجاوز الحد الأقصى المسموح به "
+                                    + maxPurchaseAmount + " ر.س",
+                            "Amount " + request.amount()
+                                    + " SAR exceeds the maximum allowed limit of "
+                                    + maxPurchaseAmount + " SAR"
+                    )),
+                    "تم حظر العملية تلقائياً وتجميد الحساب لحماية أموالك.",
+                    "Transaction was automatically blocked and account frozen to protect your funds."
+            );
+        }
+
+        // Rule 2: suspicious URL keywords -> HIGH, blocked automatically.
+        if (hasSuspiciousUrl(request.merchantUrl())) {
+            return new RuleOutcome(
+                    82,
+                    RiskLevel.HIGH,
+                    "عالٍ — رابط مشبوه",
+                    "High — Suspicious URL",
+                    "blocked",
+                    List.of(new TransactionRiskFindingResponse(
+                            "رابط موقع مشبوه",
+                            "Suspicious Website URL",
+                            "يحتوي الرابط على أنماط مرتبطة بمواقع احتيالية معروفة",
+                            "The URL contains patterns associated with known phishing sites"
+                    )),
+                    "تم حظر العملية. لا تشارك بياناتك مع هذا الموقع.",
+                    "Transaction blocked. Do not share your data with this site."
+            );
+        }
+
+        // Rule 3: unknown merchant -> MEDIUM, suspended for customer
+        // confirmation via the interception overlay.
+        if (!isKnownMerchant(request.merchantName())) {
+            return new RuleOutcome(
+                    55,
+                    RiskLevel.MEDIUM,
+                    "متوسط — تاجر غير معروف",
+                    "Medium — Unknown Merchant",
+                    "suspended",
+                    List.of(new TransactionRiskFindingResponse(
+                            "تاجر غير مسجل",
+                            "Unregistered Merchant",
+                            "لم يتم التحقق من هوية هذا المتجر في قاعدة بيانات التجار المعتمدين",
+                            "This merchant has not been verified in the approved merchants database"
+                    )),
+                    "يرجى التأكد من أنك تعرف هذا المتجر قبل المتابعة.",
+                    "Please make sure you recognize this merchant before proceeding."
+            );
+        }
+
+        // Rule 4: everything else -> LOW, allowed.
+        return new RuleOutcome(
+                15,
+                RiskLevel.LOW,
+                "منخفض — العملية آمنة",
+                "Low — Transaction Safe",
+                "allowed",
+                List.of(),
+                "تم التحقق من العملية ولم يُرصد أي نشاط مريب.",
+                "Transaction verified, no suspicious activity detected."
+        );
     }
 
-    private String yesOrNo(boolean value) {
-        return value ? "نعم" : "لا";
+    @Override
+    @Transactional
+    public TransactionDecisionResponse confirm(
+            Long transactionId
+    ) {
+        TransactionAnalysis transaction =
+                findTransaction(transactionId);
+
+        validateSuspended(transaction);
+
+        transaction.confirmByCustomer();
+        transactionAnalysisRepository.save(transaction);
+
+        return new TransactionDecisionResponse(
+                true,
+                "تمت العملية بناءً على تأكيد العميل",
+                null
+        );
     }
 
-    private String createRiskLabel(
+    @Override
+    @Transactional
+    public TransactionDecisionResponse cancel(
+            Long transactionId
+    ) {
+        TransactionAnalysis transaction =
+                findTransaction(transactionId);
+
+        validateSuspended(transaction);
+
+        FraudCase fraudCase = new FraudCase(
+                createCaseSummary(
+                        transaction.getMerchantName(),
+                        transaction.getAmount(),
+                        transaction.getMerchantUrl(),
+                        "أوقف العميل العملية بعد الاعتراض الأمني."
+                ),
+                transaction.getRiskScore(),
+                transaction.getRiskLevel(),
+                "تواصل مع العميل للتحقق من محاولة الشراء غير المصرحة."
+        );
+
+        fraudCase.setFraudPattern(UNAUTHORIZED_PURCHASE_PATTERN);
+        fraudCase.setEstimatedAmount(transaction.getAmount());
+
+        FraudCase savedCase = fraudCaseRepository.save(fraudCase);
+
+        transaction.attachFraudCase(
+                savedCase.getId(),
+                createCaseNumber(savedCase.getId())
+        );
+
+        transaction.cancelByCustomer();
+        transactionAnalysisRepository.save(transaction);
+
+        notificationRepository.save(new Notification(
+                "🚨",
+                "محاولة شراء غير مصرحة",
+                "Unauthorized Purchase Attempt",
+                "أوقف العميل عملية شراء معلقة لدى \""
+                        + transaction.getMerchantName()
+                        + "\" بقيمة "
+                        + transaction.getAmount()
+                        + " ر.س — رقم الحالة "
+                        + createCaseNumber(savedCase.getId()),
+                "Customer stopped a suspended purchase at \""
+                        + transaction.getMerchantName()
+                        + "\" for SAR "
+                        + transaction.getAmount()
+                        + " — case "
+                        + createCaseNumber(savedCase.getId()),
+                false,
+                "warning",
+                savedCase.getId(),
+                LocalDateTime.now()
+        ));
+
+        return new TransactionDecisionResponse(
+                true,
+                "تم إلغاء العملية",
+                savedCase.getId()
+        );
+    }
+
+    private FraudCase createBlockedPurchaseCase(
+            AnalyzeTransactionRequest request,
+            RuleOutcome outcome
+    ) {
+        FraudCase fraudCase = new FraudCase(
+                createCaseSummary(
+                        request.merchantName().trim(),
+                        request.amount(),
+                        request.merchantUrl(),
+                        "تم حظر العملية تلقائياً بواسطة نظام الحماية."
+                ),
+                outcome.riskScore(),
+                outcome.riskLevel(),
+                outcome.recommendationAr()
+        );
+
+        fraudCase.setFraudPattern(BLOCKED_PURCHASE_PATTERN);
+        fraudCase.setEstimatedAmount(request.amount());
+
+        return fraudCaseRepository.save(fraudCase);
+    }
+
+    // Critical purchases freeze the account immediately (staff-authority
+    // freeze: request + approve in one action, like manual SOC cases), and
+    // the freeze report number becomes the customer-facing report number.
+    private String resolveReportNumber(
+            FraudCase savedCase,
             RiskLevel riskLevel
     ) {
-        return switch (riskLevel) {
-            case LOW -> "منخفض (Low)";
-            case MEDIUM -> "متوسط (Medium)";
-            case HIGH -> "مرتفع (High)";
-            case CRITICAL -> "حرج (Critical)";
-        };
+        if (riskLevel != RiskLevel.CRITICAL) {
+            return createCaseNumber(savedCase.getId());
+        }
+
+        FreezeAccountResponse freezeResponse =
+                emergencyFreezeService.requestFreeze(
+                        savedCase.getId(),
+                        "blocked_purchase_auto"
+                );
+
+        emergencyFreezeService.approveRequest(
+                freezeResponse.requestId()
+        );
+
+        return freezeResponse.reportNumber();
     }
 
-    private String createRecommendation(
-            RiskLevel riskLevel
+    private void notifySoc(
+            FraudCase savedCase,
+            AnalyzeTransactionRequest request,
+            RiskLevel riskLevel,
+            String reportNumber
     ) {
-        return switch (riskLevel) {
-            case LOW ->
-                    "لم يتم اكتشاف خطر مرتفع، لكن تأكد من بيانات المستفيد قبل التحويل.";
+        boolean frozen = riskLevel == RiskLevel.CRITICAL;
 
-            case MEDIUM ->
-                    "راجع بيانات المستفيد وسبب التحويل قبل إكمال العملية.";
+        notificationRepository.save(new Notification(
+                frozen ? "❄️" : "🚫",
+                "شراء إلكتروني محظور",
+                "Blocked Online Purchase",
+                "تم حظر عملية شراء لدى \""
+                        + request.merchantName().trim()
+                        + "\" بقيمة "
+                        + request.amount()
+                        + " ر.س تلقائياً"
+                        + (frozen ? " وتجميد الحساب احترازياً" : "")
+                        + " — رقم البلاغ "
+                        + reportNumber,
+                "A purchase at \""
+                        + request.merchantName().trim()
+                        + "\" for SAR "
+                        + request.amount()
+                        + " was blocked automatically"
+                        + (frozen ? " and the account was preventively frozen" : "")
+                        + " — report "
+                        + reportNumber,
+                false,
+                frozen ? "freeze" : "warning",
+                savedCase.getId(),
+                LocalDateTime.now()
+        ));
+    }
 
-            case HIGH ->
-                    "أوقف العملية مؤقتًا وتحقق من المستفيد ومن البنك عبر القنوات الرسمية.";
+    private TransactionAnalysis findTransaction(
+            Long transactionId
+    ) {
+        return transactionAnalysisRepository
+                .findById(transactionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "العملية غير موجودة: " + transactionId
+                        )
+                );
+    }
 
-            case CRITICAL ->
-                    "لا تنفذ التحويل. أنهِ المكالمة ولا تشارك رمز OTP، وتواصل مع البنك فورًا.";
-        };
+    // Only suspended transactions accept a customer decision — blocked
+    // transactions have zero override ability, allowed ones need none.
+    private void validateSuspended(
+            TransactionAnalysis transaction
+    ) {
+        if (!"suspended".equals(transaction.getAction())) {
+            throw new BadRequestException(
+                    "هذه العملية غير قابلة للتأكيد أو الإلغاء من قبل العميل"
+            );
+        }
+
+        if (transaction.getResolution() != null) {
+            throw new BadRequestException(
+                    "تم اتخاذ قرار بشأن هذه العملية مسبقًا"
+            );
+        }
+    }
+
+    // TODO: replace with real AI engine
+    private boolean hasSuspiciousUrl(String merchantUrl) {
+        if (merchantUrl == null || merchantUrl.isBlank()) {
+            return false;
+        }
+
+        String url = merchantUrl
+                .toLowerCase(Locale.ROOT)
+                .trim();
+
+        return SUSPICIOUS_URL_KEYWORDS.stream()
+                .anyMatch(url::contains);
+    }
+
+    // TODO: replace with real AI engine
+    private boolean isKnownMerchant(String merchantName) {
+        String normalized = normalize(merchantName);
+
+        return KNOWN_MERCHANTS.stream()
+                .anyMatch(normalized::contains);
+    }
+
+    private String createCaseSummary(
+            String merchantName,
+            BigDecimal amount,
+            String merchantUrl,
+            String outcome
+    ) {
+        return "عملية شراء إلكتروني لدى \""
+                + merchantName
+                + "\" بقيمة "
+                + amount
+                + " ر.س"
+                + (merchantUrl == null || merchantUrl.isBlank()
+                        ? ""
+                        : " عبر الرابط " + merchantUrl.trim())
+                + ". "
+                + outcome;
+    }
+
+    // Mirrors DashboardServiceImpl.createCaseNumber so the SOC table and the
+    // customer-facing report number agree for non-frozen blocked cases.
+    private String createCaseNumber(Long caseId) {
+        return "FR-" + (9000 + caseId);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalize(String text) {
+        if (text == null) {
+            return "";
+        }
+
+        return text
+                .toLowerCase(Locale.ROOT)
+                .replaceAll(
+                        "[\\u064B-\\u065F\\u0670]",
+                        ""
+                )
+                .replace('أ', 'ا')
+                .replace('إ', 'ا')
+                .replace('آ', 'ا')
+                .replace('ة', 'ه')
+                .replace('ى', 'ي')
+                .trim();
     }
 }

@@ -22,16 +22,15 @@ describe("fraudService", () => {
     vi.restoreAllMocks();
   });
 
-  it("checkCallStatus sends the phone number as a query param and returns the parsed response", async () => {
+  it("checkCallStatus calls GET /call-status with no parameters and returns the parsed response", async () => {
     mockFetchOnce({ hasActiveOfficialCall: true, message: "ok" });
 
-    const result = await checkCallStatus("920000001");
+    const result = await checkCallStatus();
 
     expect(result.hasActiveOfficialCall).toBe(true);
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/call-status?phoneNumber=920000001"),
-      expect.any(Object)
-    );
+    const [calledUrl] = fetch.mock.calls[0];
+    expect(calledUrl).toContain("/call-status");
+    expect(calledUrl).not.toContain("?");
   });
 
   it("analyzeText posts the text and returns the parsed response", async () => {

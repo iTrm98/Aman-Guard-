@@ -4,9 +4,7 @@ com\amanguard\backend\feature\transactionanalysis\dto\response\AnalyzeTransactio
 com\amanguard\backend\feature\dashboard\config\DashboardDataInitializer.class
 com\amanguard\backend\feature\transactionanalysis\service\TransactionAnalysisService.class
 com\amanguard\backend\feature\fraudanalysis\dto\response\AnalyzeFraudResponse.class
-com\amanguard\backend\feature\transactionanalysis\TransactionAnalysis.class
 com\amanguard\backend\feature\callverification\repository\BankCallRepository.class
-com\amanguard\backend\feature\transactionanalysis\service\impl\TransactionAnalysisServiceImpl$1.class
 com\amanguard\backend\feature\account\service\AccountService.class
 com\amanguard\backend\feature\notifications\service\impl\NotificationServiceImpl.class
 com\amanguard\backend\feature\account\dto\response\AccountStatsResponse.class
