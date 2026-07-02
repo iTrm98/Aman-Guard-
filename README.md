@@ -1,3 +1,11 @@
+---
+
+## 🎥 عرض توضيحي للمشروع (Demo Video)
+للاطلاع على كيفية عمل **AmanGuard** بشكل مباشر، يمكنك مشاهدة العرض التقديمي من خلال الرابط التالي:
+
+[▶️ شاهد فيديو العرض التقديمي](https://drive.google.com/file/d/1_FFxq7MaQK564Yu2h_aqJZX4F978thZI/view?usp=sharing) 
+
+
 # AmanGuard — واجهة العميل وموظف البنك (Frontend)
 
 واجهة React + Tailwind CSS لتطبيق **AmanGuard**: نظام وقاية استباقية من الاحتيال المالي. يتضمن واجهتين:
