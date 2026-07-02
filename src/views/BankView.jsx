@@ -45,7 +45,13 @@ export default function BankView({ injectedCase, caseToOpen, onCaseOpened }) {
     if (!injectedCase) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCases(prev => [injectedCase, ...prev.filter(c => c.id !== injectedCase.id)]);
-    setStats(prev => prev ? { ...prev, criticalToday: prev.criticalToday + 1, accountsFrozen: prev.accountsFrozen + 1 } : prev);
+    // Only bump the stats the injected case actually contributes to: blocked
+    // high-risk purchases arrive with an active (not frozen) account status.
+    setStats(prev => prev ? {
+      ...prev,
+      criticalToday: prev.criticalToday + (injectedCase.riskLevel === "critical" || injectedCase.riskLevel === "high" ? 1 : 0),
+      accountsFrozen: prev.accountsFrozen + (injectedCase.accountStatus === "frozen" ? 1 : 0),
+    } : prev);
   }, [injectedCase]);
 
   // Opened from a notification: fetch the referenced case and show its drawer.

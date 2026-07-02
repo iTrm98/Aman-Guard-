@@ -53,8 +53,11 @@ src/
   i18n/
     translations.js     Object T with 100+ keys, each { ar: "...", en: "..." }
     fraudPatterns.js    FRAUD_PATTERNS (officer dropdown options), FRAUD_PATTERN_MAP (ar→en for ALL
-                        backend-emitted pattern strings), displayFraudPattern(pattern, lang),
-                        riskLevelFromScore(score). Single source of truth — never duplicate in components.
+                        backend-emitted pattern strings, incl. the purchase-flow patterns
+                        "عملية شراء مشبوهة" / "شراء إلكتروني محظور" / "محاولة شراء غير مصرحة"),
+                        UNAUTHORIZED_PURCHASE_PATTERN_AR (stop-purchase case pattern + freeze reason),
+                        displayFraudPattern(pattern, lang), riskLevelFromScore(score).
+                        Single source of truth — never duplicate in components.
 
   components/
     layout/
@@ -62,13 +65,33 @@ src/
       Sidebar.jsx             Dark navy sidebar with nav, notifications, settings, logout, currentUser chip
       Topbar.jsx              Header: title, search, language toggle, theme toggle, bell
       NotificationsPanel.jsx  Slide-in drawer — clickable rows (mark read + open linked case), type badges, loading skeleton, mark all read
-      SettingsPanel.jsx       Slide-in drawer — theme picker + language picker + app info
+      SettingsPanel.jsx       Slide-in drawer — theme picker + language picker + app info; when opened
+                              from the bank view (App.jsx passes view prop) also shows a read-only
+                              "Risk Settings" section with the max purchase limit fetched from
+                              GET /config/thresholds (server-controlled, never editable)
 
     customer/
       AccountCard.jsx         Fetches GET /account/me — masked balance, security badges, mini stats; loading/error/retry states
-      CallVerification.jsx    Phone-number input → verify if caller is real bank employee (GET /call-status)
+      CallVerification.jsx    One-button check — no user input. GET /call-status (no params); the backend
+                              looks up the current user's registered number server-side
       ScamChecker.jsx         Paste suspicious text → fraud analysis (POST /analyze)
       RiskReport.jsx          SVG gauge + findings list + interruption questions + freeze CTA
+      PurchaseCheckout.jsx    "Simulate Purchase" card: merchant/amount/URL/type form →
+                              POST /transactions/analyze, then gates on the response action:
+                              allowed → TransactionResult green, suspended → interception
+                              overlay, blocked → TransactionResult red (no override) + fires
+                              onPurchaseBlocked so App.jsx injects the case into the bank
+                              dashboard. NO threshold field or limit hint — the max purchase
+                              amount is backend config the customer never sees.
+      PurchaseInterceptionOverlay.jsx  FULL-SCREEN fixed overlay (inset:0, zIndex:70 — above the
+                              modal system at 60) for medium-risk suspended purchases. Deep-red
+                              blurred backdrop, pulsing Hand icon (pulseSoft), merchant/amount/
+                              suspicion-reason card, "نعم، أنا" → POST /transactions/{id}/confirm
+                              + success modal; "لا، أوقف العملية" → POST /transactions/{id}/cancel
+                              then the App.jsx freeze flow with reason "محاولة شراء غير مصرحة"
+      TransactionResult.jsx   Terminal purchase states: allowed (green, "try another") and
+                              blocked (red, findings list, report number, SOC-notified note,
+                              "back to home"). Blocked is final — zero customer override.
 
     bank/
       StatsCards.jsx          4 KPI cards with dynamic trend chips computed from backend today-vs-yesterday deltas
@@ -82,7 +105,8 @@ src/
                               (monitor / freeze / close), red-border validation, POST /cases on submit
 
   views/
-    CustomerView.jsx    Assembles AccountCard + CallVerification + ScamChecker + RiskReport
+    CustomerView.jsx    Assembles AccountCard + CallVerification + ScamChecker + RiskReport +
+                        PurchaseCheckout (receives onPurchaseFreeze from App.jsx)
     BankView.jsx        Assembles StatsCards + CasesTable + CaseDetailPanel; error banner + retry if the fetch fails; handles XLSX export
 
   test/
@@ -109,7 +133,9 @@ backend/
                                     PATCH /api/notifications/read-all — rows carry type + optional caseId
       customers/                    GET /api/customers/{nationalId} — 4 seeded demo customers (IDs
                                     1010101010 / 2020202020 / 3030303030 / 4040404040)
-      callverification/             GET /api/call-status — seeded BankCall rows
+      callverification/             GET /api/call-status — no params; checks the current user's registered
+                                    number server-side (placeholder TODO until telephony integration; BankCall
+                                    rows are the future active-calls registry)
       fraudanalysis/                POST /api/analyze — real rule-based risk scoring, fully bilingual response
                                     (titleAr/En, detailAr/En, recommendationAr/En, riskLabelAr/En), persists FraudCase
       emergencyfreeze/              POST /api/freeze, PATCH /api/freeze/{id}/approve|reject — request→approval workflow
@@ -119,7 +145,19 @@ backend/
                                     FraudCase has nullable officer-entered columns (customerName, fraudPattern,
                                     notes, accountStatusOverride, estimatedAmount) that win over derived values.
       verification/                 POST /api/verifications/evaluate — scores the 3 interruption questions (not yet wired to the frontend)
-      transactionanalysis/          POST /api/transactions/analyze — not yet wired to the frontend
+      transactionanalysis/          Real-time purchase risk gating. POST /api/transactions/analyze runs
+                                    4 sequential mock rules (first match wins, marked "TODO: replace with
+                                    real AI engine" — see the Purchase verification flow section),
+                                    POST /api/transactions/{id}/confirm|cancel. Blocked (high/critical)
+                                    purchases auto-create a FraudCase (pattern "شراء إلكتروني محظور",
+                                    estimatedAmount set) + SOC notification; critical additionally
+                                    freezes via EmergencyFreezeService (request + approve) — all
+                                    server-side, no customer input. Cancel creates a
+                                    "محاولة شراء غير مصرحة" case and returns its caseId for the
+                                    frontend freeze flow.
+      config/                       GET /api/config/thresholds → { maxPurchaseAmount, currency } — echoes
+                                    the amanguard.fraud.* values from application.yaml. Read-only; shown
+                                    to bank officers in SettingsPanel, never a customer form field.
   src/main/resources/application.yaml   H2 in-memory DB, port 8080
   README.md                             Run instructions, DB swap notes, where a future AI engine plugs in
 
@@ -246,7 +284,7 @@ There is **no mock mode**. Every function in `fraudService.js` calls the real ba
 | Function | Method | Endpoint | Used by |
 |---|---|---|---|
 | `getAccountInfo()` | GET | `/account/me` | AccountCard |
-| `checkCallStatus(phoneNumber)` | GET | `/call-status` | CallVerification |
+| `checkCallStatus()` | GET | `/call-status` | CallVerification |
 | `analyzeText(text)` | POST | `/analyze` | ScamChecker |
 | `freezeAccount({caseId, reason})` | POST | `/freeze` | App.jsx customer freeze flow |
 | `approveFreezeRequest(requestId)` | PATCH | `/freeze/{id}/approve` | freezeCaseByStaff |
@@ -259,6 +297,10 @@ There is **no mock mode**. Every function in `fraudService.js` calls the real ba
 | `getNotifications()` | GET | `/notifications` | AppContext (mount + 60s polling) |
 | `markNotificationRead(id)` | PATCH | `/notifications/{id}/read` | AppContext (notification row click) |
 | `markAllNotificationsRead()` | PATCH | `/notifications/read-all` | AppContext markAllRead |
+| `analyzeTransaction(body)` | POST | `/transactions/analyze` | PurchaseCheckout |
+| `confirmTransaction(id)` | POST | `/transactions/{id}/confirm` | PurchaseInterceptionOverlay |
+| `cancelTransaction(id)` | POST | `/transactions/{id}/cancel` | PurchaseInterceptionOverlay |
+| `getThresholds()` | GET | `/config/thresholds` | SettingsPanel (bank view only) |
 
 ### Response shapes
 ```js
@@ -268,6 +310,9 @@ There is **no mock mode**. Every function in `fraudService.js` calls the real ba
 // }
 
 // checkCallStatus → { hasActiveOfficialCall: bool, message: string }
+// Call verification takes NO user input: GET /call-status has no parameters.
+// The backend resolves the current user's registered phone number itself and
+// checks it against the active-calls registry (server-side lookup only).
 
 // analyzeText → {
 //   riskScore: number (0-100),
@@ -306,7 +351,51 @@ There is **no mock mode**. Every function in `fraudService.js` calls the real ba
 //                       type: "freeze"|"analysis"|"warning", caseId: number|null, createdAt }]
 // Clicking a notification marks it read; if caseId is set it also opens that
 // case's detail drawer in the bank view (bridge lives in App.jsx).
+
+// analyzeTransaction → {
+//   transactionId,
+//   riskScore, riskLevel: "low"|"medium"|"high"|"critical",
+//   riskLabelAr, riskLabelEn,
+//   action: "allowed" | "suspended" | "blocked",
+//   findings: [{ titleAr, titleEn, detailAr, detailEn }],
+//   recommendationAr, recommendationEn,
+//   reportNumber,   // set only when blocked (freeze report number for critical,
+//                   // FR-{9000+caseId} for high), null otherwise
+// }
+
+// confirmTransaction / cancelTransaction → { success, message, caseId }
+// caseId is null on confirm; on cancel it's the freshly created
+// "محاولة شراء غير مصرحة" fraud case, which the frontend passes to the
+// existing freeze flow (POST /freeze requires a caseId).
+
+// getThresholds → { maxPurchaseAmount: number, currency: string }
+// Mirrors amanguard.fraud.* in backend application.yaml. Read-only in the UI.
 ```
+
+### Purchase verification flow (real-time AI risk gating)
+`PurchaseCheckout` posts the purchase to `/transactions/analyze`; the backend evaluates **4
+sequential mock rules (first match wins)** and the UI gates on the result. Only **suspended**
+transactions accept a customer decision — confirm and cancel reject anything else server-side,
+so blocked purchases have zero override ability.
+
+| Rule | Condition | Score | Level | Action |
+|---|---|---|---|---|
+| 1 | amount > configured max (`amanguard.fraud.max-purchase-amount`, default 5000) | 95 | `critical` | `blocked` — auto FraudCase + **immediate server-side account freeze** + SOC notification |
+| 2 | merchant URL contains suspicious keywords (fake, phish, scam, secure-login, verify-account, free-gift, prize) | 82 | `high` | `blocked` — auto FraudCase + SOC notification |
+| 3 | merchant not in the known-merchants whitelist (amazon, noon, jarir, extra, stc, zain, mobily, apple, google, microsoft, samsung + Arabic aliases) | 55 | `medium` | `suspended` — full-screen `PurchaseInterceptionOverlay`, customer approves or stops |
+| 4 | everything else | 15 | `low` | `allowed` — green confirmation |
+
+**The max-purchase threshold is backend configuration only** — set in
+`backend/src/main/resources/application.yaml` under `amanguard.fraud.max-purchase-amount`
+(with `amanguard.fraud.currency`), injected via `@Value`. It must never appear as a customer
+form field or hint; the customer only sees the outcome. Bank officers can see it read-only in
+SettingsPanel (fetched from `GET /api/config/thresholds`, never hardcoded).
+
+For blocked results, `App.jsx#handlePurchaseBlocked` injects the case into the bank dashboard
+(same `frozenCase` prop-injection as manual freezes; `accountStatus: "frozen"` for critical,
+`"active"` for high) — the freeze itself already happened server-side inside `/analyze`, so the
+frontend never calls `/freeze` for blocked purchases. Auto-created cases also appear via the
+existing 60-second notification/dashboard polling.
 
 ### `/analyze` is real, rule-based analysis — not an ML model
 `FraudAnalysisServiceImpl` (backend) does deterministic keyword matching (OTP requests, urgency phrasing, suspicious links, remote-access-tool mentions, etc.) to compute `riskScore`/`findings`. It's genuine server-side computation, not a stub — but it's not a trained model either. A future Python AI engine would replace/augment this scoring; see `backend/README.md` for where that would plug in. The response contract wouldn't need to change, so no frontend work would be required when that happens.
@@ -374,7 +463,7 @@ The frontend expects the backend running at `VITE_API_BASE_URL` (default `http:/
 
 ## What's Done ✅
 
-- Full customer portal (call verify with phone-number input, fraud text analysis, risk report, emergency freeze)
+- Full customer portal (one-button call verify — no user input, server-side lookup via GET /api/call-status — fraud text analysis, risk report, emergency freeze)
 - Full bank SOC dashboard (stats, case table with live relative timestamps, case detail drawer with actions)
 - Backend fully wired end-to-end — no mock/fallback layer; every screen fetches real data and has loading/error/retry states
 - Freeze request → bank-approval workflow (customer-initiated freezes are PENDING until staff approve; staff-initiated freezes approve immediately)
@@ -384,6 +473,9 @@ The frontend expects the backend running at `VITE_API_BASE_URL` (default `http:/
 - Settings panel (theme + language pickers)
 - Sign out confirmation
 - XLSX export of cases
+- Real-time purchase verification with AI risk gating (PurchaseCheckout → analyze → allow /
+  full-screen interception overlay / auto-block, with auto-created SOC cases + notifications;
+  scoring is a placeholder rule engine marked `TODO: replace with real AI engine`)
 - `currentUser` placeholder in AppContext (see Global State section)
 - Full Vitest suite, mocking the network layer directly (no ambient backend dependency)
 - Correct financial-domain Arabic translations throughout
@@ -398,7 +490,6 @@ The frontend expects the backend running at `VITE_API_BASE_URL` (default `http:/
 - **Pagination** — Cases table shows the 20 most recent cases with no pagination.
 - **Bilingual interruption questions** — analysis findings/recommendations/labels are bilingual, but the 3 interruption questions are still Arabic-only.
 - **Interruption-questions submission** — `RiskReport`'s 3 checkboxes are local UI state only; the backend has a matching `POST /verifications/evaluate` endpoint but nothing calls it yet.
-- **Transaction analysis** — `POST /transactions/analyze` exists on the backend with no frontend UI for it.
 
 ---
 

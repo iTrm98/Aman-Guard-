@@ -4,5 +4,5 @@ import com.amanguard.backend.feature.callverification.dto.response.CallStatusRes
 
 public interface CallVerificationService {
 
-    CallStatusResponse verifyCall(String phoneNumber);
+    CallStatusResponse verifyCall();
 }

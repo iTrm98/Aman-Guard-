@@ -3,9 +3,10 @@ import AccountCard    from "../components/customer/AccountCard";
 import CallVerification from "../components/customer/CallVerification";
 import ScamChecker    from "../components/customer/ScamChecker";
 import RiskReport     from "../components/customer/RiskReport";
+import PurchaseCheckout from "../components/customer/PurchaseCheckout";
 import { useApp }     from "../context/useApp";
 
-export default function CustomerView({ onFreezeRequest }) {
+export default function CustomerView({ onFreezeRequest, onPurchaseFreeze, onPurchaseBlocked }) {
   const { t, showModal } = useApp();
   const [analysisResult, setAnalysisResult] = useState(null);
 
@@ -20,6 +21,7 @@ export default function CustomerView({ onFreezeRequest }) {
         />
       </div>
       {analysisResult && <RiskReport result={analysisResult} onFreezeRequest={onFreezeRequest} />}
+      <PurchaseCheckout onPurchaseFreeze={onPurchaseFreeze} onPurchaseBlocked={onPurchaseBlocked} />
     </div>
   );
 }

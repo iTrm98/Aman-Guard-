@@ -2,6 +2,7 @@ package com.amanguard.backend.feature.transactionanalysis.controller;
 
 import com.amanguard.backend.feature.transactionanalysis.dto.request.AnalyzeTransactionRequest;
 import com.amanguard.backend.feature.transactionanalysis.dto.response.AnalyzeTransactionResponse;
+import com.amanguard.backend.feature.transactionanalysis.dto.response.TransactionDecisionResponse;
 import com.amanguard.backend.feature.transactionanalysis.service.TransactionAnalysisService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +27,26 @@ public class TransactionAnalysisController {
     ) {
         AnalyzeTransactionResponse response =
                 transactionAnalysisService.analyze(request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/confirm")
+    public ResponseEntity<TransactionDecisionResponse> confirm(
+            @PathVariable Long id
+    ) {
+        TransactionDecisionResponse response =
+                transactionAnalysisService.confirm(id);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<TransactionDecisionResponse> cancel(
+            @PathVariable Long id
+    ) {
+        TransactionDecisionResponse response =
+                transactionAnalysisService.cancel(id);
 
         return ResponseEntity.ok(response);
     }

@@ -19,13 +19,9 @@ public class CallVerificationController {
     }
 
     @GetMapping("/call-status")
-    public ResponseEntity<CallStatusResponse> getCallStatus(
-            @RequestParam(
-                    required = false
-            ) String phoneNumber
-    ) {
+    public ResponseEntity<CallStatusResponse> getCallStatus() {
         CallStatusResponse response =
-                callVerificationService.verifyCall(phoneNumber);
+                callVerificationService.verifyCall();
 
         return ResponseEntity.ok(response);
     }

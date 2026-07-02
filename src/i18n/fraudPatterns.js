@@ -27,7 +27,18 @@ const BACKEND_DETECTED_PATTERNS = {
   "رابط مالي مشبوه":                   "Suspicious Financial Link",
   "تحويل مالي مشتبه به":               "Suspicious Transfer",
   "محاولة احتيال مالي مشتبه بها":      "Suspected Financial Fraud",
+  "عملية شراء مشبوهة":                 "Suspicious Purchase",
+  "شراء إلكتروني محظور":               "Blocked Online Purchase",
+  "محاولة شراء غير مصرحة":             "Unauthorized Purchase Attempt",
 };
+
+// Pattern stored on cases created when a customer stops an intercepted
+// purchase — also used as the freeze reason in that flow (App.jsx).
+export const UNAUTHORIZED_PURCHASE_PATTERN_AR = "محاولة شراء غير مصرحة";
+
+// Pattern the backend stores on auto-blocked purchase cases — used by
+// App.jsx when injecting a freshly blocked case into the bank dashboard.
+export const BLOCKED_PURCHASE_PATTERN_AR = "شراء إلكتروني محظور";
 
 export const FRAUD_PATTERN_MAP = {
   ...Object.fromEntries(FRAUD_PATTERNS.map((p) => [p.ar, p.en])),
