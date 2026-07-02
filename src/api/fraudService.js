@@ -1,134 +1,157 @@
-// Service layer mapping to the backend endpoints from the MVP spec:
-//   GET  /call-status        (CUST-002 verification)
-//   POST /analyze            (BACK-SB-004)
-//   POST /freeze             (BACK-SB-004)
-//   GET  /cases/active       (BACK-SB-004)
+// Service layer mapping to the Spring Boot backend endpoints:
+//   GET   /account/me                    (AccountController)
+//   GET   /call-status                   (CallVerificationController)
+//   POST  /analyze                       (FraudAnalysisController)
+//   POST  /freeze                        (EmergencyFreezeController)
+//   PATCH /freeze/{id}/approve           (EmergencyFreezeController)
+//   GET   /cases/active                  (DashboardController)
+//   GET   /cases/{id}                    (DashboardController)
+//   POST  /cases                         (DashboardController)
+//   PUT   /cases/{id}                    (DashboardController)
+//   GET   /customers/{nationalId}        (CustomerController)
+//   GET   /notifications                 (NotificationsController)
+//   PATCH /notifications/{id}/read       (NotificationsController)
+//   PATCH /notifications/read-all        (NotificationsController)
 //
-// Every function tries the real API first. If VITE_USE_MOCKS is on (default,
-// since there's no backend deployed yet) or the request fails, it falls back
-// to mock data so the UI keeps working. Swap MOCK_MODE off once the backend
-// is live and these calls will hit it directly.
+// Every function calls the backend directly. There is no mock fallback —
+// failures throw an ApiError and the calling component is responsible for
+// its own loading/error UI.
 
-import { apiClient, isMockMode } from "./client";
-import {
-  mockCallStatus,
-  mockAnalysisResult,
-  mockFreezeResponse,
-  mockStats,
-  mockCases,
-} from "./mockData";
+import { apiClient } from "./client";
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * GET /account/me
+ * Response: { iban, maskedIban, balance, currency, status, securityStatus,
+ *             stats: { opsToday, securityChecks, threatsStopped } }
+ */
+export async function getAccountInfo() {
+  return apiClient.get("/account/me");
 }
 
 /**
- * GET /call-status
- * Request:  none
- * Response: {
- *   hasActiveOfficialCall: boolean,  // true if the bank has an official call in progress with this customer right now
- *   message: string,                 // localized guidance to show the customer
- * }
+ * GET /call-status?phoneNumber=...
+ * Response: { hasActiveOfficialCall: boolean, message: string }
  */
-export async function checkCallStatus() {
-  if (isMockMode()) {
-    await delay(1200);
-    return mockCallStatus;
-  }
-  try {
-    return await apiClient.get("/call-status");
-  } catch (err) {
-    console.error("checkCallStatus failed, falling back to mock:", err);
-    await delay(800);
-    return mockCallStatus;
-  }
+export async function checkCallStatus(phoneNumber) {
+  return apiClient.get("/call-status", { params: { phoneNumber } });
 }
 
 /**
  * POST /analyze
- * Request:  { text: string }         // pasted message/link, max 500 chars (enforced client-side in ScamChecker)
+ * Request:  { text: string }
  * Response: {
- *   riskScore: number,                // 0-100
- *   riskLevel: "critical" | "high" | "medium",
- *   riskLabel: string,                 // localized display label, e.g. "حرج (Critical)"
- *   findings: [{ title: string, detail: string }],
- *   recommendation: string,
- *   interruptionQuestions: [{ id: string, text: string }],
- *   caseId: string | null,            // set when the backend opens a bank-side case for this analysis
+ *   riskScore, riskLevel, riskLabelAr, riskLabelEn,
+ *   findings: [{ titleAr, titleEn, detailAr, detailEn }],
+ *   recommendationAr, recommendationEn,
+ *   interruptionQuestions: [{ id, text }],
+ *   caseId,
  * }
  */
 export async function analyzeText(text) {
-  if (isMockMode()) {
-    await delay(1800);
-    return mockAnalysisResult;
-  }
-  try {
-    return await apiClient.post("/analyze", { text });
-  } catch (err) {
-    console.error("analyzeText failed, falling back to mock:", err);
-    await delay(800);
-    return mockAnalysisResult;
-  }
+  return apiClient.post("/analyze", { text });
 }
 
 /**
  * POST /freeze
- * Request:  {
- *   caseId: string | null,   // RiskReport.caseId when freezing off an AI analysis, or an existing bank case id
- *   reason: string,          // e.g. "customer_initiated"
- * }
- * Response: {
- *   success: boolean,
- *   reportNumber: string,    // e.g. "FR-9022", surfaced to the customer and used as the bank-side case id
- *   message: string,
- * }
+ * Request:  { caseId: number, reason: string }
+ * Response: { requestId, success, reportNumber, status: "pending"|"approved"|"rejected", message }
  */
 export async function freezeAccount({ caseId, reason } = {}) {
-  const fallbackReportNumber = `FR-${9022 + Math.floor(Math.random() * 50)}`;
-  if (isMockMode()) {
-    await delay(700);
-    return mockFreezeResponse(fallbackReportNumber);
+  return apiClient.post("/freeze", { caseId, reason });
+}
+
+/**
+ * PATCH /freeze/{id}/approve
+ */
+export async function approveFreezeRequest(requestId) {
+  return apiClient.patch(`/freeze/${requestId}/approve`);
+}
+
+/**
+ * Bank-staff-initiated freeze: staff have authority to freeze immediately,
+ * so this creates the freeze request (or reuses an existing pending one)
+ * and approves it in the same action.
+ */
+export async function freezeCaseByStaff({ caseId, freezeRequestId, freezeStatus, reason = "bank_staff_initiated" } = {}) {
+  if (freezeRequestId && freezeStatus === "pending") {
+    return approveFreezeRequest(freezeRequestId);
   }
-  try {
-    return await apiClient.post("/freeze", { caseId, reason });
-  } catch (err) {
-    console.error("freezeAccount failed, falling back to mock:", err);
-    await delay(500);
-    return mockFreezeResponse(fallbackReportNumber);
-  }
+  const created = await apiClient.post("/freeze", { caseId, reason });
+  if (created.status === "approved") return created;
+  return approveFreezeRequest(created.requestId);
 }
 
 /**
  * GET /cases/active
- * Request:  none
  * Response: {
  *   stats: {
- *     criticalToday: number,
- *     suspectedCases: number,
- *     accountsFrozen: number,
- *     amountSaved: string,          // pre-formatted with thousands separators, e.g. "1,240,500"
+ *     criticalToday, suspectedCases, accountsFrozen, amountSaved,
+ *     criticalDelta, suspectedDelta, frozenDelta, amountSavedToday,
  *   },
  *   cases: [{
- *     id: string,                   // e.g. "FR-9021"
- *     timeAgo: string,               // pre-formatted relative time, localized server-side
- *     customerName: string,
- *     fraudPattern: string,
- *     riskScore: number,             // 0-100
- *     riskLevel: "critical" | "high" | "medium",
- *     accountStatus: "active" | "partially_restricted" | "frozen",
+ *     id, caseId, createdAt, customerName, fraudPattern, riskScore, riskLevel,
+ *     accountStatus, notes, freezeRequestId, freezeStatus,
  *   }],
  * }
  */
 export async function getActiveCases() {
-  if (isMockMode()) {
-    await delay(500);
-    return { stats: mockStats, cases: mockCases };
-  }
-  try {
-    return await apiClient.get("/cases/active");
-  } catch (err) {
-    console.error("getActiveCases failed, falling back to mock:", err);
-    await delay(400);
-    return { stats: mockStats, cases: mockCases };
-  }
+  return apiClient.get("/cases/active");
+}
+
+/**
+ * GET /cases/{id} — single case, same shape as a /cases/active row.
+ */
+export async function getCaseById(caseId) {
+  return apiClient.get(`/cases/${caseId}`);
+}
+
+/**
+ * POST /cases — manual case entry by a bank officer.
+ * Request: { nationalId, customerName, accountNumber, phone, fraudPattern,
+ *            description, riskScore, immediateAction: "monitor"|"freeze"|"close" }
+ * Response: the created case (same shape as a /cases/active row).
+ */
+export async function createCase(body) {
+  return apiClient.post("/cases", body);
+}
+
+/**
+ * PUT /cases/{id} — officer edits. All fields optional:
+ * { customerName, fraudPattern, riskScore, accountStatus, notes }
+ * Response: the updated case (same shape as a /cases/active row).
+ */
+export async function updateCase(caseId, body) {
+  return apiClient.put(`/cases/${caseId}`, body);
+}
+
+/**
+ * GET /customers/{nationalId}
+ * Response: { name, nameEn, accountNumber, phone, customerId }
+ */
+export async function getCustomerByNationalId(nationalId) {
+  return apiClient.get(`/customers/${encodeURIComponent(nationalId)}`);
+}
+
+/**
+ * GET /notifications
+ * Response: [{ id, read, icon, titleAr, titleEn, bodyAr, bodyEn, type, caseId, createdAt }]
+ */
+export async function getNotifications() {
+  return apiClient.get("/notifications");
+}
+
+/**
+ * PATCH /notifications/{id}/read — fire-and-forget from the UI's perspective;
+ * local state updates optimistically.
+ */
+export async function markNotificationRead(notificationId) {
+  return apiClient.patch(`/notifications/${notificationId}/read`);
+}
+
+/**
+ * PATCH /notifications/read-all — fire-and-forget from the UI's perspective;
+ * local state updates optimistically.
+ */
+export async function markAllNotificationsRead() {
+  return apiClient.patch("/notifications/read-all");
 }

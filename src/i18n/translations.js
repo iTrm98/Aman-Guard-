@@ -3,7 +3,7 @@
 
 const T = {
   // ── Brand ───────────────────────────────────────────────────────────────
-  brand_name:    { ar: "أمان‌جارد",            en: "AmanGuard" },
+  brand_name:    { ar: "أمان‌ جارد",            en: "AmanGuard" },
   brand_sub:     { ar: "ذكاء مكافحة الاحتيال المالي", en: "Financial Fraud Intelligence" },
   hackathon_tag: { ar: "مسار التشريعات المالية — هاكاثون أمد", en: "Financial Regulations Track — Amad Hackathon" },
 
@@ -43,6 +43,8 @@ const T = {
   this_month:         { ar: "هذا الشهر",               en: "This month" },
   transaction_detail: { ar: "تفاصيل العمليات",          en: "Transaction Details" },
   close:              { ar: "إغلاق",                   en: "Close" },
+  data_load_error:    { ar: "تعذر تحميل البيانات. حاول مرة أخرى.", en: "Failed to load data. Please try again." },
+  retry_btn:          { ar: "إعادة المحاولة",            en: "Retry" },
 
   // ── Call Verification ────────────────────────────────────────────────────
   call_title:        { ar: "التحقق من مكالمة البنك",                                    en: "Bank Call Verification" },
@@ -53,6 +55,9 @@ const T = {
   re_verify:         { ar: "إعادة الفحص",                                              en: "Re-Verify" },
   verify_now:        { ar: "فحص الاتصال الآن",                                         en: "Verify Call Now" },
   verify_error:      { ar: "تعذّر التحقق من حالة الاتصال. يرجى المحاولة مجدداً.",       en: "Could not verify call status. Please try again." },
+  call_phone_label:      { ar: "رقم الهاتف المتصل",                        en: "Caller's Phone Number" },
+  call_phone_placeholder:{ ar: "مثال: 966501234567",                       en: "e.g. 966501234567" },
+  call_phone_required:   { ar: "يرجى إدخال رقم الهاتف الذي يتصل بك.",      en: "Please enter the phone number that is calling you." },
 
   // ── Scam Checker ─────────────────────────────────────────────────────────
   scam_title:        { ar: "افحص قبل أن تُنفّذ",                               en: "Verify Before You Act" },
@@ -86,16 +91,12 @@ const T = {
   // ── Stats Cards ───────────────────────────────────────────────────────────
   stats_critical:       { ar: "حالات حرجة اليوم",             en: "Critical Cases Today" },
   stats_critical_sub:   { ar: "تتطلب استجابةً فورية",         en: "Require immediate response" },
-  stats_critical_trend: { ar: "+٣ منذ الأمس",                en: "+3 since yesterday" },
   stats_suspected:      { ar: "حالات قيد المراقبة",           en: "Cases Under Monitoring" },
   stats_suspected_sub:  { ar: "مستوى الاشتباه متوسط إلى عالٍ", en: "Medium to high suspicion level" },
-  stats_suspected_trend:{ ar: "+٧ هذا الأسبوع",              en: "+7 this week" },
   stats_frozen:         { ar: "حسابات مجمدة",                en: "Frozen Accounts" },
   stats_frozen_sub:     { ar: "إجراء احترازي نشط",           en: "Active precautionary measure" },
-  stats_frozen_trend:   { ar: "٢ تم الإفراج عنهما",         en: "2 released" },
   stats_saved:          { ar: "مبالغ محميّة (ر.س)",           en: "Protected Amounts (SAR)" },
   stats_saved_sub:      { ar: "إجمالي الشهر الحالي",         en: "Current month total" },
-  stats_saved_trend:    { ar: "↑ ٢٣٪ عن الشهر الماضي",      en: "↑ 23% vs last month" },
 
   // ── Cases Table ───────────────────────────────────────────────────────────
   cases_title:     { ar: "سجل الحالات المباشر",     en: "Live Case Log" },
@@ -116,6 +117,7 @@ const T = {
   risk_critical: { ar: "حرج",    en: "Critical" },
   risk_high:     { ar: "عالٍ",   en: "High" },
   risk_medium:   { ar: "متوسط",  en: "Medium" },
+  risk_low:      { ar: "منخفض",  en: "Low" },
   status_active:   { ar: "نشط",          en: "Active" },
   status_frozen:   { ar: "مجمد",          en: "Frozen" },
   status_partial:  { ar: "مقيد جزئياً",  en: "Partial Hold" },
@@ -153,6 +155,44 @@ const T = {
   notif_title:    { ar: "الإشعارات",               en: "Notifications" },
   mark_all_read:  { ar: "تحديد الكل كمقروء",       en: "Mark all as read" },
   no_notifs:      { ar: "لا توجد إشعارات جديدة",   en: "No new notifications" },
+  notif_type_freeze:   { ar: "تجميد",  en: "Freeze" },
+  notif_type_analysis: { ar: "تحليل",  en: "Analysis" },
+  notif_type_warning:  { ar: "تحذير",  en: "Warning" },
+
+  // ── Manual case entry (AddCasePanel) ─────────────────────────────────────
+  add_case_btn:          { ar: "إضافة حالة يدوياً",            en: "Add Case Manually" },
+  add_case_title:        { ar: "إضافة حالة احتيال يدوياً",     en: "Add Fraud Case Manually" },
+  field_national_id:     { ar: "رقم الهوية / رقم العميل",      en: "National ID / Customer No." },
+  field_customer_name:   { ar: "اسم العميل",                   en: "Customer Name" },
+  field_account_number:  { ar: "رقم الحساب",                   en: "Account Number" },
+  field_phone:           { ar: "رقم الجوال",                   en: "Mobile Number" },
+  field_fraud_pattern:   { ar: "نمط الاحتيال",                 en: "Fraud Pattern" },
+  field_description:     { ar: "وصف إضافي",                    en: "Additional Description" },
+  field_manual_risk:     { ar: "درجة الخطر اليدوية (0-100)",   en: "Manual Risk Score (0-100)" },
+  field_immediate_action:{ ar: "إجراء فوري",                   en: "Immediate Action" },
+  action_monitor:        { ar: "مراقبة",                       en: "Monitor" },
+  action_freeze_precautionary: { ar: "تجميد احترازي",          en: "Precautionary Freeze" },
+  action_close_immediate:{ ar: "إغلاق فوري",                   en: "Immediate Closure" },
+  select_pattern_ph:     { ar: "اختر نمط الاحتيال...",         en: "Select fraud pattern..." },
+  add_case_submit:       { ar: "إنشاء الحالة",                 en: "Create Case" },
+  add_case_success_title:{ ar: "تم إنشاء الحالة",              en: "Case Created" },
+  add_case_success_msg:  { ar: "تم إنشاء الحالة {n} وإشعار فريق مكافحة الاحتيال.", en: "Case {n} created and the anti-fraud team notified." },
+  add_case_error:        { ar: "تعذر إنشاء الحالة. حاول مرة أخرى.", en: "Failed to create the case. Please try again." },
+  customer_not_found:    { ar: "لم يتم العثور على عميل بهذا الرقم.", en: "No customer found for this ID." },
+  required_fields_msg:   { ar: "يرجى تعبئة الحقول الإلزامية المحددة باللون الأحمر.", en: "Please fill the required fields highlighted in red." },
+
+  // ── Case editing (CaseDetailPanel) ────────────────────────────────────────
+  edit_case:         { ar: "تعديل",                          en: "Edit" },
+  save_case:         { ar: "حفظ",                            en: "Save" },
+  saving:            { ar: "جارٍ الحفظ...",                   en: "Saving..." },
+  case_notes:        { ar: "ملاحظات إضافية",                 en: "Additional Notes" },
+  case_updated_title:{ ar: "تم تحديث الحالة",                en: "Case Updated" },
+  case_updated_msg:  { ar: "تم حفظ التعديلات بنجاح.",         en: "Changes saved successfully." },
+  case_update_error: { ar: "تعذر حفظ التعديلات. حاول مرة أخرى.", en: "Failed to save changes. Please try again." },
+
+  // ── Dynamic stat trends ───────────────────────────────────────────────────
+  trend_since_yesterday: { ar: "{n} منذ الأمس", en: "{n} since yesterday" },
+  trend_saved_today:     { ar: "+{n} اليوم",    en: "+{n} today" },
 
   // ── Settings ─────────────────────────────────────────────────────────────
   settings_title:      { ar: "إعدادات التطبيق",        en: "App Settings" },

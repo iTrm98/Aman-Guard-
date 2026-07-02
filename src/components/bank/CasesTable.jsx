@@ -1,23 +1,73 @@
 import { useState } from "react";
 import { Search, RefreshCw, Download, ChevronDown, ChevronUp, Skull, AlertTriangle, AlertCircle } from "lucide-react";
 import { useApp } from "../../context/AppContext";
+import { useRelativeTime } from "../../hooks/useRelativeTime";
+import { displayFraudPattern } from "../../i18n/fraudPatterns";
+
+const RISK = {
+  critical: { cls:"risk-critical", Icon:Skull,         labelKey:"risk_critical" },
+  high:     { cls:"risk-high",     Icon:AlertTriangle, labelKey:"risk_high"     },
+  medium:   { cls:"risk-medium",   Icon:AlertCircle,   labelKey:"risk_medium"   },
+  low:      { cls:"risk-medium",   Icon:AlertCircle,   labelKey:"risk_low"      },
+};
+const STATUS = {
+  active:               { cls:"status-active",  tKey:"status_active"  },
+  partially_restricted: { cls:"status-partial", tKey:"status_partial" },
+  frozen:               { cls:"status-frozen",  tKey:"status_frozen"  },
+};
+
+function CaseRow({ c, isNew, index, t, lang, onSelectCase }) {
+  const timeAgo = useRelativeTime(c.createdAt);
+  const risk   = RISK[c.riskLevel]      ?? RISK.medium;
+  const status = STATUS[c.accountStatus] ?? STATUS.active;
+  const RiskIcon = risk.Icon;
+
+  return (
+    <tr style={{ borderBottom:"1px solid var(--border-subtle)", background: isNew ? "rgba(192,57,43,0.04)" : index % 2 === 0 ? "var(--table-even)" : "var(--table-odd)", transition:"background 0.15s" }}>
+      <td style={{ padding:"13px 18px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          {isNew && <span className="live-dot" />}
+          <div>
+            <p style={{ fontWeight:900, fontSize:12, color:"var(--text-primary)" }}>#{c.id}</p>
+            <p style={{ fontSize:11, color: isNew ? "var(--red)" : "var(--text-muted)", fontWeight: isNew ? 700 : 400 }}>{timeAgo}</p>
+          </div>
+        </div>
+      </td>
+      <td style={{ padding:"13px 18px" }}>
+        <p style={{ fontWeight:700, color:"var(--text-primary)" }}>{c.customerName}</p>
+      </td>
+      <td style={{ padding:"13px 18px" }}>
+        <p style={{ color:"var(--text-secondary)", maxWidth:200 }}>{displayFraudPattern(c.fraudPattern, lang)}</p>
+      </td>
+      <td style={{ padding:"13px 18px" }}>
+        <span className={`risk-badge ${risk.cls}`}>
+          <RiskIcon style={{ width:11, height:11 }} />
+          {c.riskScore} — {t(risk.labelKey)}
+        </span>
+      </td>
+      <td style={{ padding:"13px 18px" }}>
+        <span className={`status-badge ${status.cls}`}>{t(status.tKey)}</span>
+      </td>
+      <td style={{ padding:"13px 18px", textAlign:"center" }}>
+        {isNew ? (
+          <button onClick={() => onSelectCase?.(c)} className="btn-primary" style={{ padding:"6px 14px", fontSize:12 }}>
+            {t("action_confirm")}
+          </button>
+        ) : (
+          <button onClick={() => onSelectCase?.(c)} className="btn-ghost" style={{ padding:"6px 14px", fontSize:12, color:"#1a5a9a", borderColor:"rgba(26,90,154,0.3)" }}>
+            {t("action_review")}
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+}
 
 export default function CasesTable({ cases, onRefresh, highlightId, onExport, onSelectCase }) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
   const [query,  setQuery]   = useState("");
   const [sortBy, setSortBy]  = useState("riskScore");
   const [sortDir,setSortDir] = useState("desc");
-
-  const RISK = {
-    critical: { cls:"risk-critical", Icon:Skull         },
-    high:     { cls:"risk-high",     Icon:AlertTriangle  },
-    medium:   { cls:"risk-medium",   Icon:AlertCircle    },
-  };
-  const STATUS = {
-    active:               { cls:"status-active",  tKey:"status_active"  },
-    partially_restricted: { cls:"status-partial", tKey:"status_partial" },
-    frozen:               { cls:"status-frozen",  tKey:"status_frozen"  },
-  };
 
   const filtered = cases
     .filter(c => !query || c.id.toLowerCase().includes(query.toLowerCase()) || c.customerName.includes(query))
@@ -82,51 +132,17 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c, i) => {
-              const risk   = RISK[c.riskLevel]      ?? RISK.medium;
-              const status = STATUS[c.accountStatus] ?? STATUS.active;
-              const RiskIcon = risk.Icon;
-              const isNew  = c.id === highlightId;
-              return (
-                <tr key={c.id} style={{ borderBottom:"1px solid var(--border-subtle)", background: isNew ? "rgba(192,57,43,0.04)" : i % 2 === 0 ? "var(--table-even)" : "var(--table-odd)", transition:"background 0.15s" }}>
-                  <td style={{ padding:"13px 18px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      {isNew && <span className="live-dot" />}
-                      <div>
-                        <p style={{ fontWeight:900, fontSize:12, color:"var(--text-primary)" }}>#{c.id}</p>
-                        <p style={{ fontSize:11, color: isNew ? "var(--red)" : "var(--text-muted)", fontWeight: isNew ? 700 : 400 }}>{c.timeAgo}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding:"13px 18px" }}>
-                    <p style={{ fontWeight:700, color:"var(--text-primary)" }}>{c.customerName}</p>
-                  </td>
-                  <td style={{ padding:"13px 18px" }}>
-                    <p style={{ color:"var(--text-secondary)", maxWidth:200 }}>{c.fraudPattern}</p>
-                  </td>
-                  <td style={{ padding:"13px 18px" }}>
-                    <span className={`risk-badge ${risk.cls}`}>
-                      <RiskIcon style={{ width:11, height:11 }} />
-                      {c.riskScore} — {t(`risk_${c.riskLevel}`)}
-                    </span>
-                  </td>
-                  <td style={{ padding:"13px 18px" }}>
-                    <span className={`status-badge ${status.cls}`}>{t(status.tKey)}</span>
-                  </td>
-                  <td style={{ padding:"13px 18px", textAlign:"center" }}>
-                    {isNew ? (
-                      <button onClick={() => onSelectCase?.(c)} className="btn-primary" style={{ padding:"6px 14px", fontSize:12 }}>
-                        {t("action_confirm")}
-                      </button>
-                    ) : (
-                      <button onClick={() => onSelectCase?.(c)} className="btn-ghost" style={{ padding:"6px 14px", fontSize:12, color:"#1a5a9a", borderColor:"rgba(26,90,154,0.3)" }}>
-                        {t("action_review")}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+            {filtered.map((c, i) => (
+              <CaseRow
+                key={c.id}
+                c={c}
+                index={i}
+                isNew={c.id === highlightId}
+                t={t}
+                lang={lang}
+                onSelectCase={onSelectCase}
+              />
+            ))}
             {filtered.length === 0 && (
               <tr><td colSpan={6} style={{ padding:40, textAlign:"center", color:"var(--text-muted)", fontSize:14 }}>{t("no_cases")}</td></tr>
             )}

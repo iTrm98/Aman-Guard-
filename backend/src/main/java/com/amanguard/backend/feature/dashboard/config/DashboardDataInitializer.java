@@ -10,6 +10,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.math.BigDecimal;
+
 @Configuration
 public class DashboardDataInitializer {
 
@@ -30,6 +32,8 @@ public class DashboardDataInitializer {
                     "لا تفتح الرابط وتحقق من شركة التوصيل عبر قنواتها الرسمية."
             );
 
+            shippingCase.setEstimatedAmount(new BigDecimal("7500"));
+
             fraudCaseRepository.save(shippingCase);
 
             FraudCase otpCase = new FraudCase(
@@ -38,6 +42,8 @@ public class DashboardDataInitializer {
                     RiskLevel.CRITICAL,
                     "أوقف التواصل فوراً ولا تشارك رمز التحقق."
             );
+
+            otpCase.setEstimatedAmount(new BigDecimal("12500"));
 
             FraudCase savedOtpCase =
                     fraudCaseRepository.save(otpCase);

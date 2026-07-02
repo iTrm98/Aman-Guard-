@@ -2,7 +2,8 @@ import { ShieldCheck, LayoutDashboard, Bell, Settings, LogOut, ChevronLeft, Chev
 import { useApp } from "../../context/AppContext";
 
 export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile }) {
-  const { t, lang, unreadCount, openPanel, showModal } = useApp();
+  const { t, lang, unreadCount, openPanel, showModal, currentUser } = useApp();
+  const displayName = lang === "en" ? currentUser.nameEn : currentUser.name;
 
   const NAV = [
     { id:"customer", labelKey:"nav_customer", Icon:ShieldCheck },
@@ -110,10 +111,10 @@ export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile 
         {/* User chip */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:12, padding:"10px 12px", borderRadius:12, background:"#0a1620" }}>
           <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg,#c49a5a,#8a6030)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
-            ن
+            {displayName.charAt(0)}
           </div>
           <div style={{ minWidth:0 }}>
-            <p style={{ fontSize:13, fontWeight:700, color:"#c8d8e8", truncate:true, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>نواف العتيبي</p>
+            <p style={{ fontSize:13, fontWeight:700, color:"#c8d8e8", truncate:true, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{displayName}</p>
             <p style={{ fontSize:11, color:"#4a6070" }}>{t("premium_client")}</p>
           </div>
         </div>

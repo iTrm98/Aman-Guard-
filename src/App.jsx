@@ -10,38 +10,46 @@ import { freezeAccount } from "./api/fraudService";
 import { useApp } from "./context/useApp";
 
 function AppShell() {
-  const { modal, closeModal, showModal, panel, closePanel, t } = useApp();
+  const { modal, closeModal, showModal, panel, closePanel, t, lang, currentUser } = useApp();
   const [view,          setView]          = useState("customer");
   const [frozenCase,    setFrozenCase]    = useState(null);
+  const [caseToOpen,    setCaseToOpen]    = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  function handleFreezeRequest(caseId) {
+  function handleOpenCaseFromNotification(caseId) {
+    closePanel();
+    setView("bank");
+    setCaseToOpen(caseId);
+  }
+
+  function handleFreezeRequest(analysisResult) {
     showModal({
       title:      t("freeze_confirm_title"),
       message:    t("freeze_confirm_msg"),
       type:       "danger",
       showCancel: true,
       confirmText:t("freeze_confirm_btn"),
-      onConfirm:  () => executeFreeze(caseId),
+      onConfirm:  () => executeFreeze(analysisResult),
     });
   }
 
-  async function executeFreeze(caseId) {
-    const res = await freezeAccount({ caseId, reason:"customer_initiated" });
+  async function executeFreeze(analysisResult) {
+    const res = await freezeAccount({ caseId: analysisResult?.caseId, reason:"customer_initiated" });
     showModal({
       title:      t("freeze_success_title"),
       message:    t("freeze_success_msg", { n: res.reportNumber }),
       type:       "success",
       confirmText:t("goto_bank"),
       onConfirm: () => {
+        const accountStatus = res.status === "pending" ? "partially_restricted" : "frozen";
         setFrozenCase({
           id:            res.reportNumber,
-          timeAgo:       t("lang") === "en" ? "Just now" : "الآن",
-          customerName:  "نواف العتيبي",
-          fraudPattern:  "احتيال OTP عبر الهندسة الاجتماعية",
-          riskScore:     95,
-          riskLevel:     "critical",
-          accountStatus: "frozen",
+          createdAt:     new Date().toISOString(),
+          customerName:  lang === "en" ? currentUser.nameEn : currentUser.name,
+          fraudPattern:  analysisResult?.findings?.[0]?.titleAr ?? analysisResult?.riskLabelAr,
+          riskScore:     analysisResult?.riskScore ?? 0,
+          riskLevel:     analysisResult?.riskLevel ?? "high",
+          accountStatus,
         });
         setView("bank");
       },
@@ -52,7 +60,9 @@ function AppShell() {
     <div className="flex h-screen overflow-hidden">
       <Modal {...modal} onClose={closeModal} />
 
-      {panel?.type === "notifications" && <NotificationsPanel onClose={closePanel} />}
+      {panel?.type === "notifications" && (
+        <NotificationsPanel onClose={closePanel} onOpenCase={handleOpenCaseFromNotification} />
+      )}
       {panel?.type === "settings"      && <SettingsPanel      onClose={closePanel} />}
 
       <Sidebar
@@ -68,7 +78,11 @@ function AppShell() {
           <div style={{ maxWidth:1080, margin:"0 auto" }}>
             {view === "customer"
               ? <CustomerView onFreezeRequest={handleFreezeRequest} />
-              : <BankView     injectedCase={frozenCase} />
+              : <BankView
+                  injectedCase={frozenCase}
+                  caseToOpen={caseToOpen}
+                  onCaseOpened={() => setCaseToOpen(null)}
+                />
             }
           </div>
         </main>
