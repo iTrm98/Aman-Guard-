@@ -1,31 +1,80 @@
-import { describe, expect, it } from "vitest";
-import { analyzeText, checkCallStatus, freezeAccount, getActiveCases } from "../api/fraudService";
+import { describe, expect, it, vi, afterEach } from "vitest";
+import {
+  checkCallStatus,
+  analyzeText,
+  freezeAccount,
+  getActiveCases,
+  getAccountInfo,
+  getNotifications,
+} from "../api/fraudService";
+import { ApiError } from "../api/client";
 
-// VITE_USE_MOCKS defaults to true in this environment (no .env override in tests),
-// so these calls should resolve with mock data without hitting the network.
+function mockFetchOnce(body, { ok = true, status = 200 } = {}) {
+  globalThis.fetch = vi.fn().mockResolvedValue({
+    ok,
+    status,
+    json: async () => body,
+  });
+}
 
-describe("fraudService (mock mode)", () => {
-  it("checkCallStatus returns a call status object", async () => {
-    const result = await checkCallStatus();
-    expect(result).toHaveProperty("hasActiveOfficialCall");
+describe("fraudService", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it("analyzeText returns a risk score and findings", async () => {
-    const result = await analyzeText("نص مشبوه");
-    expect(result.riskScore).toBeGreaterThan(0);
-    expect(Array.isArray(result.findings)).toBe(true);
-    expect(Array.isArray(result.interruptionQuestions)).toBe(true);
+  it("checkCallStatus sends the phone number as a query param and returns the parsed response", async () => {
+    mockFetchOnce({ hasActiveOfficialCall: true, message: "ok" });
+
+    const result = await checkCallStatus("920000001");
+
+    expect(result.hasActiveOfficialCall).toBe(true);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/call-status?phoneNumber=920000001"),
+      expect.any(Object)
+    );
   });
 
-  it("freezeAccount returns a report number", async () => {
-    const result = await freezeAccount({ caseId: "CASE-1" });
-    expect(result.success).toBe(true);
-    expect(result.reportNumber).toMatch(/^FR-/);
+  it("analyzeText posts the text and returns the parsed response", async () => {
+    mockFetchOnce({ riskScore: 82, riskLevel: "high", findings: [], interruptionQuestions: [], caseId: 5 });
+
+    const result = await analyzeText("suspicious text");
+
+    expect(result.riskScore).toBe(82);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/analyze"),
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("freezeAccount throws an ApiError when the backend rejects the request (no mock fallback)", async () => {
+    mockFetchOnce({ message: "رقم حالة الاحتيال مطلوب" }, { ok: false, status: 400 });
+
+    await expect(freezeAccount({ caseId: null, reason: "x" })).rejects.toBeInstanceOf(ApiError);
   });
 
   it("getActiveCases returns stats and a cases list", async () => {
+    mockFetchOnce({ stats: { criticalToday: 1 }, cases: [] });
+
     const result = await getActiveCases();
+
     expect(result.stats).toBeDefined();
     expect(Array.isArray(result.cases)).toBe(true);
+  });
+
+  it("getAccountInfo returns the parsed account response", async () => {
+    mockFetchOnce({ iban: "SA...", maskedIban: "SA••4821", balance: 100, currency: "SAR", status: "active", securityStatus: "protected", stats: { opsToday: 1, securityChecks: 2, threatsStopped: 3 } });
+
+    const result = await getAccountInfo();
+
+    expect(result.maskedIban).toBe("SA••4821");
+  });
+
+  it("getNotifications returns the parsed notifications list", async () => {
+    mockFetchOnce([{ id: 1, read: false, icon: "🚨", titleAr: "x", titleEn: "x", bodyAr: "y", bodyEn: "y", createdAt: "2026-01-01T00:00:00" }]);
+
+    const result = await getNotifications();
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result[0].id).toBe(1);
   });
 });

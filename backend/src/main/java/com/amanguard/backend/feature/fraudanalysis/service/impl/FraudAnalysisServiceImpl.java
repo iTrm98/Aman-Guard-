@@ -53,7 +53,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "طلب رمز OTP",
-                    "البنك لن يطلب منك مشاركة رمز التحقق أو رمز المصادقة."
+                    "OTP Code Request",
+                    "البنك لن يطلب منك مشاركة رمز التحقق أو رمز المصادقة.",
+                    "The bank will never ask you to share your OTP or authentication code."
             ));
         }
 
@@ -69,7 +71,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "استخدام التهديد",
-                    "الرسالة تستخدم تهديد إيقاف الحساب للضغط على العميل."
+                    "Threatening Language",
+                    "الرسالة تستخدم تهديد إيقاف الحساب للضغط على العميل.",
+                    "The message uses account-suspension threats to pressure the customer."
             ));
         }
 
@@ -85,7 +89,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "طلب عاجل لتنفيذ العملية",
-                    "الاستعجال من الأساليب الشائعة المستخدمة في الاحتيال."
+                    "Urgent Action Demand",
+                    "الاستعجال من الأساليب الشائعة المستخدمة في الاحتيال.",
+                    "Urgency is a common tactic used in fraud."
             ));
         }
 
@@ -101,7 +107,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "ادعاء صفة رسمية",
-                    "المرسل يدعي أنه يمثل البنك أو جهة مالية رسمية."
+                    "Official Impersonation",
+                    "المرسل يدعي أنه يمثل البنك أو جهة مالية رسمية.",
+                    "The sender claims to represent the bank or an official financial authority."
             ));
         }
 
@@ -116,7 +124,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "طلب تحديث البيانات",
-                    "قد يكون طلب تحديث البيانات محاولة للحصول على معلومات العميل."
+                    "Data Update Request",
+                    "قد يكون طلب تحديث البيانات محاولة للحصول على معلومات العميل.",
+                    "A data-update request may be an attempt to harvest customer information."
             ));
         }
 
@@ -132,7 +142,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "طلب بيانات مالية سرية",
-                    "يجب عدم مشاركة بيانات البطاقة أو الرقم السري مع أي شخص."
+                    "Confidential Financial Data Request",
+                    "يجب عدم مشاركة بيانات البطاقة أو الرقم السري مع أي شخص.",
+                    "Never share your card details or PIN with anyone."
             ));
         }
 
@@ -148,7 +160,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "وعود مالية غير واقعية",
-                    "الرسالة تتضمن وعوداً بأرباح سريعة أو مضمونة."
+                    "Unrealistic Financial Promises",
+                    "الرسالة تتضمن وعوداً بأرباح سريعة أو مضمونة.",
+                    "The message promises quick or guaranteed profits."
             ));
         }
 
@@ -163,7 +177,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "احتمال رابط توصيل وهمي",
-                    "قد تكون الرسالة محاولة لسرقة بيانات البطاقة."
+                    "Possible Fake Delivery Link",
+                    "قد تكون الرسالة محاولة لسرقة بيانات البطاقة.",
+                    "The message may be an attempt to steal card details."
             ));
         }
 
@@ -179,7 +195,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "طلب تثبيت برنامج تحكم",
-                    "برنامج التحكم عن بعد قد يسمح للمحتال بالسيطرة على جهاز العميل."
+                    "Remote-Access Software Request",
+                    "برنامج التحكم عن بعد قد يسمح للمحتال بالسيطرة على جهاز العميل.",
+                    "Remote-access software can give the fraudster control of the customer's device."
             ));
         }
 
@@ -188,7 +206,9 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             findings.add(new RiskFindingResponse(
                     "وجود رابط مشبوه",
-                    "الرسالة تحتوي على رابط يجب التحقق منه قبل فتحه."
+                    "Suspicious Link Detected",
+                    "الرسالة تحتوي على رابط يجب التحقق منه قبل فتحه.",
+                    "The message contains a link that must be verified before opening."
             ));
         }
 
@@ -199,17 +219,19 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
         if (findings.isEmpty()) {
             findings.add(new RiskFindingResponse(
                     "لا توجد مؤشرات قوية",
-                    "لم يتم اكتشاف مؤشرات احتيال واضحة في النص المدخل."
+                    "No Strong Indicators",
+                    "لم يتم اكتشاف مؤشرات احتيال واضحة في النص المدخل.",
+                    "No clear fraud indicators were detected in the submitted text."
             ));
         }
 
-        String recommendation = createRecommendation(riskLevel);
+        String recommendationAr = createRecommendationAr(riskLevel);
 
         FraudCase fraudCase = new FraudCase(
                 originalText,
                 riskScore,
                 riskLevel,
-                recommendation
+                recommendationAr
         );
 
         FraudCase savedCase = fraudCaseRepository.save(fraudCase);
@@ -217,9 +239,11 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
         return new AnalyzeFraudResponse(
                 riskScore,
                 riskLevel.name().toLowerCase(Locale.ROOT),
-                createRiskLabel(riskLevel),
+                createRiskLabelAr(riskLevel),
+                createRiskLabelEn(riskLevel),
                 findings,
-                recommendation,
+                recommendationAr,
+                createRecommendationEn(riskLevel),
                 createQuestions(riskLevel),
                 savedCase.getId()
         );
@@ -250,16 +274,25 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
                 .trim();
     }
 
-    private String createRiskLabel(RiskLevel riskLevel) {
+    private String createRiskLabelAr(RiskLevel riskLevel) {
         return switch (riskLevel) {
-            case LOW -> "منخفض (Low)";
-            case MEDIUM -> "متوسط (Medium)";
-            case HIGH -> "مرتفع (High)";
-            case CRITICAL -> "حرج (Critical)";
+            case LOW -> "منخفض";
+            case MEDIUM -> "متوسط";
+            case HIGH -> "مرتفع";
+            case CRITICAL -> "حرج";
         };
     }
 
-    private String createRecommendation(RiskLevel riskLevel) {
+    private String createRiskLabelEn(RiskLevel riskLevel) {
+        return switch (riskLevel) {
+            case LOW -> "Low";
+            case MEDIUM -> "Medium";
+            case HIGH -> "High";
+            case CRITICAL -> "Critical";
+        };
+    }
+
+    private String createRecommendationAr(RiskLevel riskLevel) {
         return switch (riskLevel) {
             case LOW ->
                     "لم يتم اكتشاف خطر مرتفع، لكن تحقق دائماً من هوية المرسل.";
@@ -272,6 +305,22 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
             case CRITICAL ->
                     "أوقف العملية فوراً، ولا تشارك رمز التحقق أو بيانات البطاقة.";
+        };
+    }
+
+    private String createRecommendationEn(RiskLevel riskLevel) {
+        return switch (riskLevel) {
+            case LOW ->
+                    "No high risk detected, but always verify the sender's identity.";
+
+            case MEDIUM ->
+                    "Verify the sender and the link before making any financial transaction.";
+
+            case HIGH ->
+                    "Do not proceed before contacting the bank through its official channels.";
+
+            case CRITICAL ->
+                    "Stop immediately — do not share your OTP or card details.";
         };
     }
 

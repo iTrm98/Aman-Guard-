@@ -1,21 +1,61 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import T from "../i18n/translations";
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead as apiMarkNotificationRead,
+} from "../api/fraudService";
+
+const NOTIFICATIONS_POLL_MS = 60000;
 
 const AppContext = createContext(null);
 
-const MOCK_NOTIFICATIONS = [
-  { id: 1, read: false, icon: "🚨", titleKey: "stats_critical",    body: { ar: "تم رصد حالة احتيال حرجة جديدة — FR-9023", en: "New critical fraud case detected — FR-9023" }, time: "٢ دقيقة" },
-  { id: 2, read: false, icon: "❄️", titleKey: "account_protected", body: { ar: "تم تجميد الحساب SA••4821 بناءً على طلب العميل", en: "Account SA••4821 frozen at client request" }, time: "١٥ دقيقة" },
-  { id: 3, read: true,  icon: "✅", titleKey: "report_title",       body: { ar: "تقرير تحليل المخاطر الأسبوعي متاح الآن", en: "Weekly risk analysis report is now available" }, time: "١ ساعة" },
-  { id: 4, read: true,  icon: "⚠️", titleKey: "stats_suspected",    body: { ar: "ارتفعت حالات الاشتباه بنسبة ١٢٪ هذا الأسبوع", en: "Suspected cases up 12% this week" }, time: "٣ ساعات" },
-];
+// Placeholder until real JWT/session auth is added — every place that shows
+// the logged-in user's identity should read from this instead of a literal.
+const CURRENT_USER = {
+  name: "نواف العتيبي",
+  nameEn: "Nawaf Al-Otaibi",
+  role: "customer",
+  accountId: "SA0000000000000000004821",
+};
 
 export function AppProvider({ children }) {
   const [lang,          setLang]          = useState("ar");
   const [theme,         setTheme]         = useState("light");
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [modal,         setModal]         = useState({ open: false });
   const [panel,         setPanel]         = useState(null); // { type, data }
+  const [currentUser]   = useState(CURRENT_USER);
+
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const data = await getNotifications();
+      setNotifications(data);
+    } catch (err) {
+      console.error("Failed to load notifications:", err);
+    }
+  }, []);
+
+  // Fetch notifications on mount, then poll for new ones. Failures are
+  // caught (not rethrown) so a down backend degrades to an empty list
+  // instead of breaking every screen that reads from AppContext.
+  useEffect(() => {
+    let cancelled = false;
+    getNotifications()
+      .then((data) => {
+        if (!cancelled) setNotifications(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load notifications:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setNotificationsLoading(false);
+      });
+
+    const interval = setInterval(refreshNotifications, NOTIFICATIONS_POLL_MS);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [refreshNotifications]);
 
   // Apply theme to root element
   useEffect(() => {
@@ -44,6 +84,18 @@ export function AppProvider({ children }) {
 
   function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    // Fire-and-forget: local state updates optimistically regardless of
+    // whether the request succeeds.
+    markAllNotificationsRead().catch((err) => {
+      console.error("Failed to persist mark-all-read:", err);
+    });
+  }
+
+  function markNotificationRead(id) {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    apiMarkNotificationRead(id).catch((err) => {
+      console.error("Failed to persist notification read:", err);
+    });
   }
 
   const showModal = useCallback((config) => {
@@ -57,9 +109,10 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       lang, theme, t, toggleTheme, toggleLang,
-      notifications, markAllRead, unreadCount,
+      notifications, notificationsLoading, markAllRead, markNotificationRead, refreshNotifications, unreadCount,
       modal, showModal, closeModal,
       panel, openPanel, closePanel,
+      currentUser,
     }}>
       {children}
     </AppContext.Provider>

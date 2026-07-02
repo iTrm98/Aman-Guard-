@@ -19,10 +19,15 @@ function RiskGauge({ score }) {
 }
 
 export default function RiskReport({ result, onFreezeRequest }) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
   const [answers,  setAnswers]  = useState({});
   const [expanded, setExpanded] = useState(true);
   if (!result) return null;
+
+  // English fields fall back to Arabic when missing/empty — never undefined.
+  const pick = (ar, en) => (lang === "en" && en ? en : ar);
+  const riskLabel = pick(result.riskLabelAr, result.riskLabelEn);
+  const recommendation = pick(result.recommendationAr, result.recommendationEn);
 
   const score = result.riskScore;
   const riskColor  = score >= 80 ? "var(--red)" : score >= 50 ? "#d35400" : "var(--gold)";
@@ -43,7 +48,7 @@ export default function RiskReport({ result, onFreezeRequest }) {
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ textAlign:"center" }}>
             <RiskGauge score={score} />
-            <p style={{ fontSize:11, fontWeight:900, color:riskColor, marginTop:-4 }}>{result.riskLabel}</p>
+            <p style={{ fontSize:11, fontWeight:900, color:riskColor, marginTop:-4 }}>{riskLabel}</p>
           </div>
           <button onClick={() => setExpanded(v => !v)} style={{ padding:7, borderRadius:8, background:"rgba(0,0,0,0.08)", border:"none", cursor:"pointer", color:"var(--text-muted)" }}>
             {expanded ? <ChevronUp style={{ width:16, height:16 }} /> : <ChevronDown style={{ width:16, height:16 }} />}
@@ -58,11 +63,11 @@ export default function RiskReport({ result, onFreezeRequest }) {
             <p style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--text-muted)", marginBottom:12 }}>{t("report_findings")}</p>
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {result.findings.map((f) => (
-                <div key={f.title} style={{ display:"flex", gap:10, padding:12, borderRadius:10, background:"rgba(192,57,43,0.06)", border:"1px solid rgba(192,57,43,0.15)" }}>
+                <div key={f.titleAr} style={{ display:"flex", gap:10, padding:12, borderRadius:10, background:"rgba(192,57,43,0.06)", border:"1px solid rgba(192,57,43,0.15)" }}>
                   <XCircle style={{ width:15, height:15, color:"var(--red)", flexShrink:0, marginTop:1 }} />
                   <div>
-                    <p style={{ fontSize:13, fontWeight:700, color:"var(--red)" }}>{f.title}</p>
-                    <p style={{ fontSize:12, lineHeight:1.5, color:"var(--text-secondary)", marginTop:2 }}>{f.detail}</p>
+                    <p style={{ fontSize:13, fontWeight:700, color:"var(--red)" }}>{pick(f.titleAr, f.titleEn)}</p>
+                    <p style={{ fontSize:12, lineHeight:1.5, color:"var(--text-secondary)", marginTop:2 }}>{pick(f.detailAr, f.detailEn)}</p>
                   </div>
                 </div>
               ))}
@@ -70,7 +75,7 @@ export default function RiskReport({ result, onFreezeRequest }) {
             <div style={{ marginTop:12, display:"flex", gap:10, padding:12, borderRadius:10, background:"rgba(26,90,154,0.07)", borderInlineStart:`3px solid #1a5a9a` }}>
               <div>
                 <p style={{ fontSize:12, fontWeight:700, color:"#1a5a9a", marginBottom:3 }}>{t("report_recommendation")}</p>
-                <p style={{ fontSize:12, lineHeight:1.6, color:"var(--text-secondary)" }}>{result.recommendation}</p>
+                <p style={{ fontSize:12, lineHeight:1.6, color:"var(--text-secondary)" }}>{recommendation}</p>
               </div>
             </div>
           </div>
@@ -97,7 +102,7 @@ export default function RiskReport({ result, onFreezeRequest }) {
               </div>
             </div>
 
-            <button onClick={() => onFreezeRequest?.(result.caseId)} className="btn-danger" style={{ width:"100%", padding:"13px 16px", borderRadius:12, fontSize:15 }}>
+            <button onClick={() => onFreezeRequest?.(result)} className="btn-danger" style={{ width:"100%", padding:"13px 16px", borderRadius:12, fontSize:15 }}>
               <Snowflake style={{ width:18, height:18 }} />
               {t("freeze_btn")}
             </button>

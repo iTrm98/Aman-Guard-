@@ -5,9 +5,11 @@ import java.util.List;
 public record AnalyzeFraudResponse(
         int riskScore,
         String riskLevel,
-        String riskLabel,
+        String riskLabelAr,
+        String riskLabelEn,
         List<RiskFindingResponse> findings,
-        String recommendation,
+        String recommendationAr,
+        String recommendationEn,
         List<InterruptionQuestionResponse> interruptionQuestions,
         Long caseId
 ) {

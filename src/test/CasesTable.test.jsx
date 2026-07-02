@@ -6,7 +6,7 @@ import CasesTable from "../components/bank/CasesTable";
 const cases = [
   {
     id: "FR-9021",
-    timeAgo: "منذ 15 دقيقة",
+    createdAt: "2026-07-02T03:45:00",
     customerName: "تركي السفياني",
     fraudPattern: "رابط شحنة وهمي",
     riskScore: 82,
@@ -15,7 +15,7 @@ const cases = [
   },
   {
     id: "FR-9020",
-    timeAgo: "الآن",
+    createdAt: "2026-07-02T04:00:00",
     customerName: "نواف العتيبي",
     fraudPattern: "احتيال OTP",
     riskScore: 95,

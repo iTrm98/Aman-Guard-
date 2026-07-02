@@ -4,6 +4,10 @@ public record DashboardStatsResponse(
         long criticalToday,
         long suspectedCases,
         long accountsFrozen,
-        String amountSaved
+        String amountSaved,
+        long criticalDelta,
+        long suspectedDelta,
+        long frozenDelta,
+        String amountSavedToday
 ) {
 }

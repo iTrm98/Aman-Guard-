@@ -5,9 +5,16 @@ import RiskReport from "../components/customer/RiskReport";
 
 const mockResult = {
   riskScore: 95,
-  riskLabel: "حرج (Critical)",
-  findings: [{ title: "طلب رمز OTP", detail: "البنك لن يطلب منك رمز التحقق الخاص بك أبداً." }],
-  recommendation: "لا تستجب للرسالة.",
+  riskLabelAr: "حرج",
+  riskLabelEn: "Critical",
+  findings: [{
+    titleAr: "طلب رمز OTP",
+    titleEn: "OTP Code Request",
+    detailAr: "البنك لن يطلب منك رمز التحقق الخاص بك أبداً.",
+    detailEn: "The bank will never ask you for your OTP.",
+  }],
+  recommendationAr: "لا تستجب للرسالة.",
+  recommendationEn: "Do not respond to the message.",
   interruptionQuestions: [{ id: "q1", text: "هل طلب منك شخص ما تنفيذ هذه العملية؟" }],
   caseId: null,
 };
@@ -22,19 +29,20 @@ describe("RiskReport", () => {
     renderWithApp(<RiskReport result={mockResult} onFreezeRequest={vi.fn()} />);
 
     expect(screen.getByText("95")).toBeInTheDocument();
-    expect(screen.getByText("حرج (Critical)")).toBeInTheDocument();
+    expect(screen.getByText("حرج")).toBeInTheDocument();
     expect(screen.getByText(/طلب رمز OTP/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /تجميد طارئ للحساب/ })).toBeInTheDocument();
   });
 
-  it("calls onFreezeRequest with the case id when the freeze button is clicked", async () => {
+  it("calls onFreezeRequest with the full analysis result when the freeze button is clicked", async () => {
     const onFreezeRequest = vi.fn();
     const { default: userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
 
-    renderWithApp(<RiskReport result={{ ...mockResult, caseId: "CASE-1" }} onFreezeRequest={onFreezeRequest} />);
+    const result = { ...mockResult, caseId: "CASE-1" };
+    renderWithApp(<RiskReport result={result} onFreezeRequest={onFreezeRequest} />);
     await user.click(screen.getByRole("button", { name: /تجميد طارئ للحساب/ }));
 
-    expect(onFreezeRequest).toHaveBeenCalledWith("CASE-1");
+    expect(onFreezeRequest).toHaveBeenCalledWith(result);
   });
 });

@@ -1,21 +1,24 @@
 import { useState } from "react";
 import { PhoneCall, RefreshCw, ShieldX, ShieldCheck, Loader2 } from "lucide-react";
 import { checkCallStatus } from "../../api/fraudService";
+import { apiErrorMessage } from "../../api/client";
 import { useApp } from "../../context/AppContext";
 
 export default function CallVerification() {
   const { t } = useApp();
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [status, setStatus] = useState("idle");
   const [result, setResult] = useState(null);
   const [error,  setError]  = useState(null);
 
   async function handleCheck() {
+    if (!phoneNumber.trim()) { setError(t("call_phone_required")); return; }
     setStatus("loading"); setError(null);
     try {
-      const data = await checkCallStatus();
+      const data = await checkCallStatus(phoneNumber.trim());
       setResult(data); setStatus("done");
-    } catch {
-      setError(t("verify_error")); setStatus("idle");
+    } catch (err) {
+      setError(apiErrorMessage(err, t("verify_error"))); setStatus("idle");
     }
   }
 
@@ -34,6 +37,17 @@ export default function CallVerification() {
       </div>
 
       <div style={{ height:1, background:"var(--border-subtle)" }} />
+
+      <div>
+        <label style={{ display:"block", fontSize:12, fontWeight:700, color:"var(--text-muted)", marginBottom:6 }}>{t("call_phone_label")}</label>
+        <input
+          type="tel"
+          value={phoneNumber}
+          onChange={(e) => setPhoneNumber(e.target.value)}
+          placeholder={t("call_phone_placeholder")}
+          className="input-field"
+        />
+      </div>
 
       {status === "done" && result && (
         <div style={{ borderRadius:12, padding:14, display:"flex", gap:12, background: isUnsafe ? "rgba(192,57,43,0.08)" : "rgba(26,122,74,0.08)", border:`1.5px solid ${isUnsafe ? "rgba(192,57,43,0.25)" : "rgba(26,122,74,0.25)"}` }}>
