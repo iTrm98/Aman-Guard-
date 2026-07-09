@@ -27,10 +27,9 @@ public class Notification {
     @Column(name = "body_en", nullable = false, length = 500)
     private String bodyEn;
 
-    @Column(nullable = false)
+    @Column(name = "is_read", nullable = false)
     private boolean read;
 
-    // Short machine code, not display text: "freeze" | "analysis" | "warning".
     @Column(nullable = false, length = 20)
     private String type;
 

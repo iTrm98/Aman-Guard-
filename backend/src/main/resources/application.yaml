@@ -3,32 +3,37 @@ spring:
     name: amanguard-backend
 
   datasource:
-    url: jdbc:h2:mem:amanguard
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://127.0.0.1:3307/amanguard_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: amanguard_user
+    password: AmanGuard@12345
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
 
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
 
 server:
   port: 8080
 
-# Fraud-prevention thresholds. max-purchase-amount is the hard purchase limit:
-# any transaction above it is blocked and the account frozen automatically,
-# with no customer input. Never exposed as a customer-facing form field —
-# read-only visibility for bank officers via GET /api/config/thresholds.
 amanguard:
   fraud:
     max-purchase-amount: 5000
     currency: SAR
+
+  auth:
+    issuer: AmanGuard
+    jwt-secret: ${AMANGUARD_JWT_SECRET:demo-secret-change-this-before-production-please-use-64-characters-minimum}
+    access-token-minutes: 30
+    refresh-token-days: 7
+    otp-expiry-minutes: 5
+    expose-demo-otp: true

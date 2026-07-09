@@ -6,14 +6,9 @@ import com.amanguard.backend.feature.dashboard.dto.response.ActiveCaseResponse;
 import com.amanguard.backend.feature.dashboard.dto.response.DashboardResponse;
 import com.amanguard.backend.feature.dashboard.service.DashboardService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
@@ -28,9 +23,15 @@ public class DashboardController {
     }
 
     @GetMapping("/cases/active")
-    public ResponseEntity<DashboardResponse> getActiveCases() {
+    public ResponseEntity<DashboardResponse> getActiveCases(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
         DashboardResponse response =
-                dashboardService.getActiveCases();
+                dashboardService.getActiveCases(
+                        page,
+                        size
+                );
 
         return ResponseEntity.ok(response);
     }
@@ -48,9 +49,11 @@ public class DashboardController {
     public ResponseEntity<ActiveCaseResponse> createCase(
             @Valid @RequestBody CreateCaseRequest request
     ) {
-        return ResponseEntity.ok(
-                dashboardService.createCase(request)
-        );
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(
+                        dashboardService.createCase(request)
+                );
     }
 
     @PutMapping("/cases/{caseId}")
@@ -59,7 +62,10 @@ public class DashboardController {
             @Valid @RequestBody UpdateCaseRequest request
     ) {
         return ResponseEntity.ok(
-                dashboardService.updateCase(caseId, request)
+                dashboardService.updateCase(
+                        caseId,
+                        request
+                )
         );
     }
 }

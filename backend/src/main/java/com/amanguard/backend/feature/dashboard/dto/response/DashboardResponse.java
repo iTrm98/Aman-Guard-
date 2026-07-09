@@ -4,6 +4,7 @@ import java.util.List;
 
 public record DashboardResponse(
         DashboardStatsResponse stats,
-        List<ActiveCaseResponse> cases
+        List<ActiveCaseResponse> cases,
+        PaginationResponse pagination
 ) {
 }

@@ -7,11 +7,17 @@ import com.amanguard.backend.feature.dashboard.dto.response.DashboardResponse;
 
 public interface DashboardService {
 
-    DashboardResponse getActiveCases();
+    DashboardResponse getActiveCases(
+            int page,
+            int size
+    );
 
     ActiveCaseResponse getCaseById(Long caseId);
 
     ActiveCaseResponse createCase(CreateCaseRequest request);
 
-    ActiveCaseResponse updateCase(Long caseId, UpdateCaseRequest request);
+    ActiveCaseResponse updateCase(
+            Long caseId,
+            UpdateCaseRequest request
+    );
 }

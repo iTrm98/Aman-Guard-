@@ -71,4 +71,16 @@ public class EmergencyFreezeController {
 
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/{requestId}/unfreeze")
+    public ResponseEntity<FreezeRequestStatusResponse>
+    unfreezeRequest(
+            @PathVariable Long requestId
+    ) {
+        FreezeRequestStatusResponse response =
+                emergencyFreezeService
+                        .unfreezeRequest(requestId);
+
+        return ResponseEntity.ok(response);
+    }
 }

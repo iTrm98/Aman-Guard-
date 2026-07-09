@@ -84,6 +84,10 @@ public class FreezeRequest {
         status = FreezeStatus.REJECTED;
     }
 
+    public void unfreeze() {
+        status = FreezeStatus.UNFROZEN;
+    }
+
     public Long getId() {
         return id;
     }

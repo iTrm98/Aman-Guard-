@@ -6,6 +6,7 @@ import com.amanguard.backend.feature.dashboard.dto.request.UpdateCaseRequest;
 import com.amanguard.backend.feature.dashboard.dto.response.ActiveCaseResponse;
 import com.amanguard.backend.feature.dashboard.dto.response.DashboardResponse;
 import com.amanguard.backend.feature.dashboard.dto.response.DashboardStatsResponse;
+import com.amanguard.backend.feature.dashboard.dto.response.PaginationResponse;
 import com.amanguard.backend.feature.dashboard.service.DashboardService;
 import com.amanguard.backend.feature.emergencyfreeze.dto.response.FreezeAccountResponse;
 import com.amanguard.backend.feature.emergencyfreeze.model.FreezeRequest;
@@ -17,6 +18,11 @@ import com.amanguard.backend.feature.fraudanalysis.model.RiskLevel;
 import com.amanguard.backend.feature.fraudanalysis.repository.FraudCaseRepository;
 import com.amanguard.backend.feature.notifications.model.Notification;
 import com.amanguard.backend.feature.notifications.repository.NotificationRepository;
+import com.amanguard.backend.feature.realtime.dto.CaseRealtimeMessage;
+import com.amanguard.backend.feature.realtime.dto.NotificationRealtimeMessage;
+import com.amanguard.backend.feature.realtime.service.RealtimePublishService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,43 +49,70 @@ public class DashboardServiceImpl
     private final FreezeRequestRepository freezeRequestRepository;
     private final NotificationRepository notificationRepository;
     private final EmergencyFreezeService emergencyFreezeService;
+    private final RealtimePublishService realtimePublishService;
 
     public DashboardServiceImpl(
             FraudCaseRepository fraudCaseRepository,
             FreezeRequestRepository freezeRequestRepository,
             NotificationRepository notificationRepository,
-            EmergencyFreezeService emergencyFreezeService
+            EmergencyFreezeService emergencyFreezeService,
+            RealtimePublishService realtimePublishService
     ) {
         this.fraudCaseRepository = fraudCaseRepository;
         this.freezeRequestRepository = freezeRequestRepository;
         this.notificationRepository = notificationRepository;
         this.emergencyFreezeService = emergencyFreezeService;
+        this.realtimePublishService = realtimePublishService;
     }
 
     @Override
-    public DashboardResponse getActiveCases() {
-        List<FraudCase> fraudCases =
+    public DashboardResponse getActiveCases(
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = normalizePageSize(size);
+
+        Sort sort = Sort.by(
+                Sort.Direction.DESC,
+                "createdAt"
+        );
+
+        Page<FraudCase> fraudCasePage =
                 fraudCaseRepository.findAll(
-                        Sort.by(
-                                Sort.Direction.DESC,
-                                "createdAt"
+                        PageRequest.of(
+                                safePage,
+                                safeSize,
+                                sort
                         )
                 );
 
-        List<ActiveCaseResponse> allCases = fraudCases.stream()
-                .map(this::createCaseResponse)
-                .toList();
+        List<FraudCase> allFraudCases =
+                fraudCaseRepository.findAll(sort);
+
+        List<ActiveCaseResponse> allCaseResponses =
+                allFraudCases
+                        .stream()
+                        .map(this::createCaseResponse)
+                        .toList();
 
         DashboardStatsResponse stats =
-                createStats(fraudCases, allCases);
+                createStats(
+                        allFraudCases,
+                        allCaseResponses
+                );
 
-        List<ActiveCaseResponse> cases = allCases.stream()
-                .limit(20)
-                .toList();
+        List<ActiveCaseResponse> cases =
+                fraudCasePage
+                        .getContent()
+                        .stream()
+                        .map(this::createCaseResponse)
+                        .toList();
 
         return new DashboardResponse(
                 stats,
-                cases
+                cases,
+                PaginationResponse.from(fraudCasePage)
         );
     }
 
@@ -112,13 +145,18 @@ public class DashboardServiceImpl
         String notes = description.isEmpty() ? null : description;
 
         if ("close".equals(request.immediateAction())) {
-            String closeNote = "الإجراء الفوري المختار: إغلاق فوري.";
-            notes = notes == null ? closeNote : notes + "\n" + closeNote;
+            String closeNote =
+                    "الإجراء الفوري المختار: إغلاق فوري.";
+
+            notes = notes == null
+                    ? closeNote
+                    : notes + "\n" + closeNote;
         }
 
         fraudCase.setNotes(notes);
 
-        FraudCase savedCase = fraudCaseRepository.save(fraudCase);
+        FraudCase savedCase =
+                fraudCaseRepository.save(fraudCase);
 
         boolean freezeAction =
                 "freeze".equals(request.immediateAction())
@@ -136,23 +174,38 @@ public class DashboardServiceImpl
             );
         }
 
-        ActiveCaseResponse response = createCaseResponse(savedCase);
+        ActiveCaseResponse response =
+                createCaseResponse(savedCase);
 
-        notificationRepository.save(new Notification(
-                freezeAction ? "❄️" : "🚨",
-                freezeAction ? "تجميد حساب" : "حالة جديدة",
-                freezeAction ? "Account Freeze" : "New Case",
-                "تم إنشاء حالة يدوياً للعميل "
-                        + savedCase.getCustomerName()
-                        + " — رقم الحالة " + response.id(),
-                "Manual case created for customer "
-                        + savedCase.getCustomerName()
-                        + " — case " + response.id(),
-                false,
-                freezeAction ? "freeze" : "warning",
-                savedCase.getId(),
-                LocalDateTime.now()
-        ));
+        Notification notification =
+                notificationRepository.save(
+                        new Notification(
+                                freezeAction ? "❄️" : "🚨",
+                                freezeAction ? "تجميد حساب" : "حالة جديدة",
+                                freezeAction ? "Account Freeze" : "New Case",
+                                "تم إنشاء حالة يدوياً للعميل "
+                                        + savedCase.getCustomerName()
+                                        + " — رقم الحالة " + response.id(),
+                                "Manual case created for customer "
+                                        + savedCase.getCustomerName()
+                                        + " — case " + response.id(),
+                                false,
+                                freezeAction ? "freeze" : "warning",
+                                savedCase.getId(),
+                                LocalDateTime.now()
+                        )
+                );
+
+        publishCaseEvent(
+                savedCase,
+                response,
+                "NEW_CASE"
+        );
+
+        publishNotificationEvent(
+                notification,
+                "NEW_NOTIFICATION"
+        );
 
         return response;
     }
@@ -166,11 +219,15 @@ public class DashboardServiceImpl
         FraudCase fraudCase = findFraudCase(caseId);
 
         if (hasText(request.customerName())) {
-            fraudCase.setCustomerName(request.customerName().trim());
+            fraudCase.setCustomerName(
+                    request.customerName().trim()
+            );
         }
 
         if (hasText(request.fraudPattern())) {
-            fraudCase.setFraudPattern(request.fraudPattern().trim());
+            fraudCase.setFraudPattern(
+                    request.fraudPattern().trim()
+            );
         }
 
         if (request.riskScore() != null) {
@@ -188,12 +245,24 @@ public class DashboardServiceImpl
         }
 
         if (request.notes() != null) {
-            fraudCase.setNotes(trimToNull(request.notes()));
+            fraudCase.setNotes(
+                    trimToNull(request.notes())
+            );
         }
 
-        return createCaseResponse(
-                fraudCaseRepository.save(fraudCase)
+        FraudCase savedCase =
+                fraudCaseRepository.save(fraudCase);
+
+        ActiveCaseResponse response =
+                createCaseResponse(savedCase);
+
+        publishCaseEvent(
+                savedCase,
+                response,
+                "UPDATED_CASE"
         );
+
+        return response;
     }
 
     private FraudCase findFraudCase(Long caseId) {
@@ -210,50 +279,62 @@ public class DashboardServiceImpl
             List<FraudCase> fraudCases,
             List<ActiveCaseResponse> caseResponses
     ) {
-        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
-        LocalDateTime yesterdayStart = todayStart.minusDays(1);
+        LocalDateTime todayStart =
+                LocalDate.now().atStartOfDay();
+
+        LocalDateTime yesterdayStart =
+                todayStart.minusDays(1);
 
         List<RiskLevel> criticalLevels =
-                List.of(RiskLevel.CRITICAL, RiskLevel.HIGH);
-
-        long criticalToday = fraudCaseRepository
-                .countByRiskLevelInAndCreatedAtGreaterThanEqual(
-                        criticalLevels,
-                        todayStart
+                List.of(
+                        RiskLevel.CRITICAL,
+                        RiskLevel.HIGH
                 );
 
-        long criticalYesterday = fraudCaseRepository
-                .countByRiskLevelInAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
-                        criticalLevels,
-                        yesterdayStart,
-                        todayStart
-                );
+        long criticalToday =
+                fraudCaseRepository
+                        .countByRiskLevelInAndCreatedAtGreaterThanEqual(
+                                criticalLevels,
+                                todayStart
+                        );
 
-        long suspectedToday = fraudCaseRepository
-                .countByRiskLevelInAndCreatedAtGreaterThanEqual(
-                        List.of(RiskLevel.MEDIUM),
-                        todayStart
-                );
+        long criticalYesterday =
+                fraudCaseRepository
+                        .countByRiskLevelInAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                                criticalLevels,
+                                yesterdayStart,
+                                todayStart
+                        );
 
-        long suspectedYesterday = fraudCaseRepository
-                .countByRiskLevelInAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
-                        List.of(RiskLevel.MEDIUM),
-                        yesterdayStart,
-                        todayStart
-                );
+        long suspectedToday =
+                fraudCaseRepository
+                        .countByRiskLevelInAndCreatedAtGreaterThanEqual(
+                                List.of(RiskLevel.MEDIUM),
+                                todayStart
+                        );
 
-        long approvalsToday = freezeRequestRepository
-                .countByStatusAndUpdatedAtGreaterThanEqual(
-                        FreezeStatus.APPROVED,
-                        todayStart
-                );
+        long suspectedYesterday =
+                fraudCaseRepository
+                        .countByRiskLevelInAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                                List.of(RiskLevel.MEDIUM),
+                                yesterdayStart,
+                                todayStart
+                        );
 
-        long approvalsYesterday = freezeRequestRepository
-                .countByStatusAndUpdatedAtGreaterThanEqualAndUpdatedAtLessThan(
-                        FreezeStatus.APPROVED,
-                        yesterdayStart,
-                        todayStart
-                );
+        long approvalsToday =
+                freezeRequestRepository
+                        .countByStatusAndUpdatedAtGreaterThanEqual(
+                                FreezeStatus.APPROVED,
+                                todayStart
+                        );
+
+        long approvalsYesterday =
+                freezeRequestRepository
+                        .countByStatusAndUpdatedAtGreaterThanEqualAndUpdatedAtLessThan(
+                                FreezeStatus.APPROVED,
+                                yesterdayStart,
+                                todayStart
+                        );
 
         long suspectedCases = 0;
         long accountsFrozen = 0;
@@ -264,9 +345,11 @@ public class DashboardServiceImpl
             FraudCase fraudCase = fraudCases.get(i);
             ActiveCaseResponse response = caseResponses.get(i);
 
-            boolean frozen = "frozen".equals(response.accountStatus());
+            boolean frozen =
+                    "frozen".equals(response.accountStatus());
 
-            if (fraudCase.getRiskLevel() == RiskLevel.MEDIUM && !frozen) {
+            if (fraudCase.getRiskLevel() == RiskLevel.MEDIUM
+                    && !frozen) {
                 suspectedCases++;
             }
 
@@ -278,15 +361,19 @@ public class DashboardServiceImpl
                     !"none".equals(response.freezeStatus())
                             || fraudCase.getAccountStatusOverride() != null;
 
-            if (actionTaken && fraudCase.getEstimatedAmount() != null) {
+            if (actionTaken
+                    && fraudCase.getEstimatedAmount() != null) {
                 amountSaved = amountSaved.add(
                         fraudCase.getEstimatedAmount()
                 );
 
-                if (!fraudCase.getCreatedAt().isBefore(todayStart)) {
-                    amountSavedToday = amountSavedToday.add(
-                            fraudCase.getEstimatedAmount()
-                    );
+                if (!fraudCase
+                        .getCreatedAt()
+                        .isBefore(todayStart)) {
+                    amountSavedToday =
+                            amountSavedToday.add(
+                                    fraudCase.getEstimatedAmount()
+                            );
                 }
             }
         }
@@ -335,16 +422,18 @@ public class DashboardServiceImpl
                 )
                 .orElse("none");
 
-        String customerName = fraudCase.getCustomerName() != null
-                ? fraudCase.getCustomerName()
-                : createCustomerName(fraudCase.getId());
+        String customerName =
+                fraudCase.getCustomerName() != null
+                        ? fraudCase.getCustomerName()
+                        : createCustomerName(fraudCase.getId());
 
-        String fraudPattern = fraudCase.getFraudPattern() != null
-                ? fraudCase.getFraudPattern()
-                : detectFraudPattern(fraudCase.getInputText());
+        String fraudPattern =
+                fraudCase.getFraudPattern() != null
+                        ? fraudCase.getFraudPattern()
+                        : detectFraudPattern(
+                                fraudCase.getInputText()
+                        );
 
-        // An officer's explicit status override wins over the
-        // freeze-request-derived status.
         String accountStatus =
                 fraudCase.getAccountStatusOverride() != null
                         ? fraudCase.getAccountStatusOverride()
@@ -367,6 +456,53 @@ public class DashboardServiceImpl
                 fraudCase.getNotes(),
                 freezeRequestId,
                 freezeStatus
+        );
+    }
+
+    private void publishCaseEvent(
+            FraudCase fraudCase,
+            ActiveCaseResponse response,
+            String eventType
+    ) {
+        realtimePublishService.publishCase(
+                new CaseRealtimeMessage(
+                        fraudCase.getId(),
+                        eventType,
+                        fraudCase.getRiskLevel().name(),
+                        fraudCase.getRiskScore(),
+                        response.customerName(),
+                        response.fraudPattern(),
+                        fraudCase.getAccountNumber(),
+                        fraudCase.getPhone(),
+                        fraudCase.getEstimatedAmount(),
+                        fraudCase.getCreatedAt(),
+                        eventType.equals("NEW_CASE")
+                                ? "تم رصد حالة احتيال جديدة"
+                                : "تم تحديث حالة احتيال",
+                        eventType.equals("NEW_CASE")
+                                ? "New fraud case detected"
+                                : "Fraud case updated"
+                )
+        );
+    }
+
+    private void publishNotificationEvent(
+            Notification notification,
+            String eventType
+    ) {
+        realtimePublishService.publishNotification(
+                new NotificationRealtimeMessage(
+                        notification.getId(),
+                        eventType,
+                        notification.getIcon(),
+                        notification.getTitleAr(),
+                        notification.getTitleEn(),
+                        notification.getBodyAr(),
+                        notification.getBodyEn(),
+                        notification.getType(),
+                        notification.getCaseId(),
+                        notification.getCreatedAt()
+                )
         );
     }
 
@@ -487,6 +623,14 @@ public class DashboardServiceImpl
         }
 
         return "محاولة احتيال مالي مشتبه بها";
+    }
+
+    private int normalizePageSize(int size) {
+        if (size <= 0) {
+            return 20;
+        }
+
+        return Math.min(size, 100);
     }
 
     private boolean hasText(String value) {

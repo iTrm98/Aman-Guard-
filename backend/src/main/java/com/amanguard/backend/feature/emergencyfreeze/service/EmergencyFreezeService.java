@@ -21,4 +21,8 @@ public interface EmergencyFreezeService {
     FreezeRequestStatusResponse rejectRequest(
             Long requestId
     );
+
+    FreezeRequestStatusResponse unfreezeRequest(
+            Long requestId
+    );
 }

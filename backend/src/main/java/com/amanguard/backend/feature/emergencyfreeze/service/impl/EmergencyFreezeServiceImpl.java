@@ -42,6 +42,11 @@ public class EmergencyFreezeServiceImpl
     ) {
         validateFraudCase(caseId);
 
+        String safeReason =
+                reason == null || reason.isBlank()
+                        ? "طلب تجميد احترازي"
+                        : reason.trim();
+
         Optional<FreezeRequest> latestRequest =
                 freezeRequestRepository
                         .findFirstByFraudCaseIdOrderByCreatedAtDesc(
@@ -83,7 +88,7 @@ public class EmergencyFreezeServiceImpl
 
         FreezeRequest freezeRequest = new FreezeRequest(
                 caseId,
-                reason.trim(),
+                safeReason,
                 FreezeStatus.PENDING,
                 generateReportNumber()
         );
@@ -139,6 +144,14 @@ public class EmergencyFreezeServiceImpl
             );
         }
 
+        if (freezeRequest.getStatus()
+                == FreezeStatus.UNFROZEN) {
+
+            throw new BadRequestException(
+                    "لا يمكن اعتماد طلب تم إلغاء تجميده مسبقًا"
+            );
+        }
+
         freezeRequest.approve();
 
         FreezeRequest savedRequest =
@@ -175,6 +188,14 @@ public class EmergencyFreezeServiceImpl
             );
         }
 
+        if (freezeRequest.getStatus()
+                == FreezeStatus.UNFROZEN) {
+
+            throw new BadRequestException(
+                    "لا يمكن رفض طلب تم إلغاء تجميده مسبقًا"
+            );
+        }
+
         freezeRequest.reject();
 
         FreezeRequest savedRequest =
@@ -183,6 +204,50 @@ public class EmergencyFreezeServiceImpl
         return createStatusResponse(
                 savedRequest,
                 "تم رفض طلب التجميد بعد مراجعة الحالة."
+        );
+    }
+
+    @Override
+    @Transactional
+    public FreezeRequestStatusResponse unfreezeRequest(
+            Long requestId
+    ) {
+        FreezeRequest freezeRequest =
+                findFreezeRequest(requestId);
+
+        if (freezeRequest.getStatus()
+                == FreezeStatus.UNFROZEN) {
+
+            return createStatusResponse(
+                    freezeRequest,
+                    "تم إلغاء التجميد مسبقًا."
+            );
+        }
+
+        if (freezeRequest.getStatus()
+                == FreezeStatus.PENDING) {
+
+            throw new BadRequestException(
+                    "لا يمكن إلغاء تجميد طلب ما زال قيد المراجعة"
+            );
+        }
+
+        if (freezeRequest.getStatus()
+                == FreezeStatus.REJECTED) {
+
+            throw new BadRequestException(
+                    "لا يمكن إلغاء تجميد طلب مرفوض"
+            );
+        }
+
+        freezeRequest.unfreeze();
+
+        FreezeRequest savedRequest =
+                freezeRequestRepository.save(freezeRequest);
+
+        return createStatusResponse(
+                savedRequest,
+                "تم إلغاء التجميد وإعادة الحساب للحالة النشطة."
         );
     }
 
@@ -247,6 +312,9 @@ public class EmergencyFreezeServiceImpl
 
             case REJECTED ->
                     "تم رفض طلب التجميد بعد المراجعة.";
+
+            case UNFROZEN ->
+                    "تم إلغاء التجميد وإعادة الحساب للحالة النشطة.";
         };
     }
 
