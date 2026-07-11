@@ -6,20 +6,25 @@ import NotificationsPanel from "./components/layout/NotificationsPanel";
 import SettingsPanel      from "./components/layout/SettingsPanel";
 import CustomerView from "./views/CustomerView";
 import BankView     from "./views/BankView";
+import LoginView    from "./views/LoginView";
 import { freezeAccount } from "./api/fraudService";
 import { UNAUTHORIZED_PURCHASE_PATTERN_AR, BLOCKED_PURCHASE_PATTERN_AR } from "./i18n/fraudPatterns";
 import { useApp } from "./context/useApp";
 
 function AppShell() {
   const { modal, closeModal, showModal, panel, closePanel, t, lang, currentUser } = useApp();
-  const [view,          setView]          = useState("customer");
+  // Role owns the view: officers get the SOC dashboard, customers the portal.
+  // Deriving it (rather than useState) means there is no runtime switch that
+  // could ever put a customer on the bank dashboard or vice-versa — the backend
+  // enforces the same split.
+  const view = currentUser.role === "BANK_OFFICER" ? "bank" : "customer";
   const [frozenCase,    setFrozenCase]    = useState(null);
   const [caseToOpen,    setCaseToOpen]    = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   function handleOpenCaseFromNotification(caseId) {
+    // Officer-only flow — they are already on the bank view, so just open the case.
     closePanel();
-    setView("bank");
     setCaseToOpen(caseId);
   }
 
@@ -56,9 +61,11 @@ function AppShell() {
       title:      t("freeze_success_title"),
       message:    t("freeze_success_msg", { n: res.reportNumber }),
       type:       "success",
-      confirmText:t("goto_bank"),
+      confirmText:t("ok"),
       onConfirm: () => {
         const accountStatus = res.status === "pending" ? "partially_restricted" : "frozen";
+        // Injects into the SOC dashboard (consumed only by the officer's BankView);
+        // the customer stays on their portal — no cross-role view switch.
         setFrozenCase({
           id:            res.reportNumber,
           createdAt:     new Date().toISOString(),
@@ -68,7 +75,6 @@ function AppShell() {
           riskLevel:     analysisResult?.riskLevel ?? "high",
           accountStatus,
         });
-        setView("bank");
       },
     });
   }
@@ -84,7 +90,7 @@ function AppShell() {
 
       <Sidebar
         view={view}
-        onSwitchView={setView}
+        onSwitchView={() => { /* view is role-derived; nav is a single fixed item */ }}
         mobileOpen={mobileNavOpen}
         onCloseMobile={() => setMobileNavOpen(false)}
       />
@@ -113,5 +119,7 @@ function AppShell() {
 }
 
 export default function App() {
+  const { isAuthenticated } = useApp();
+  if (!isAuthenticated) return <LoginView />;
   return <AppShell />;
 }

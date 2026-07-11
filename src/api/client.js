@@ -1,13 +1,34 @@
 // Base HTTP client for talking to the AmanGuard Spring Boot backend.
 // Backend base URL is configurable via VITE_API_BASE_URL (see .env.example).
+//
+// Auth: every request carries the stored JWT (localStorage "amanguard_token")
+// as an Authorization header. A 401 on a non-auth endpoint means the session
+// is gone/expired, so we clear the stored session and reload — main.jsx then
+// re-reads localStorage, finds no token, and renders the login screen.
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+
+export const TOKEN_KEY = "amanguard_token";
+export const USER_KEY = "amanguard_user";
 
 export class ApiError extends Error {
   constructor(message, status) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+  }
+}
+
+function handleUnauthorized() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  // Guarded so unit tests (jsdom, no real navigation) don't throw.
+  if (typeof window !== "undefined" && typeof window.location?.reload === "function") {
+    try {
+      window.location.reload();
+    } catch {
+      /* navigation not implemented in the test environment */
+    }
   }
 }
 
@@ -20,18 +41,30 @@ async function request(path, { method = "GET", body, params, signal } = {}) {
     if (query) url += `?${query}`;
   }
 
+  const headers = { "Content-Type": "application/json" };
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   const res = await fetch(url, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
     signal,
   });
+
+  // Session expired/invalid — bounce to login. /auth/* is exempt: a 401 there
+  // is a normal auth outcome (bad credentials), surfaced to the caller instead.
+  if (res.status === 401 && !path.startsWith("/auth/")) {
+    handleUnauthorized();
+  }
 
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
     try {
       const data = await res.json();
-      message = data?.message || message;
+      // Most errors carry `message`; the rate-limit (429) body instead has
+      // messageEn/messageAr, so fall back to those before the generic string.
+      message = data?.message || data?.messageEn || data?.messageAr || message;
     } catch {
       /* ignore parse errors */
     }

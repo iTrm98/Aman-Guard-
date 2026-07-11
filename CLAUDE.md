@@ -26,7 +26,7 @@ The app has two views that share the same shell:
 | Testing | Vitest + @testing-library/react + @testing-library/user-event |
 | Font | Tajawal (Arabic primary), Inter (English fallback) — loaded from Google Fonts in `index.css` |
 | Package manager | npm |
-| Backend | Java 21 + Spring Boot 3, Maven, H2 in-memory DB (`backend/`) |
+| Backend | Java 17 + Spring Boot 3.5, Maven, MySQL + Flyway migrations, Spring Security + JWT, Bucket4j rate limiting (`backend/`) |
 
 **There is no routing library** — view switching is done via a single `view` state in `AppShell` (`"customer"` or `"bank"`).
 
@@ -37,8 +37,12 @@ The app has two views that share the same shell:
 ```
 src/
   api/
-    client.js           Base HTTP client (fetch wrapper, ApiError class, query-param support)
-    fraudService.js     Service functions — every one calls the real backend directly, no mock fallback
+    client.js           Base HTTP client (fetch wrapper, ApiError class, query params). Attaches the
+                        stored JWT (localStorage "amanguard_token") as a Bearer header on every request;
+                        a 401 on a non-/auth endpoint clears the session + reloads → login screen.
+                        Exports BASE_URL, TOKEN_KEY, USER_KEY.
+    fraudService.js     Service functions — every one calls the real backend directly, no mock fallback.
+                        Also holds login(nationalId, password) and logout() (POST /auth/login, /auth/logout).
 
   hooks/
     useRelativeTime.js  useRelativeTime(isoString) → localized "5 minutes ago" string, re-computed every 60s
@@ -47,7 +51,9 @@ src/
     relativeTime.js     formatRelativeTime(isoString, lang) — pure function used by the hook
 
   context/
-    AppContext.jsx      Single global context: theme, lang, t(), modal, panel, notifications, currentUser
+    AppContext.jsx      Single global context: theme, lang, t(), modal, panel, notifications, and auth
+                        (currentUser, isAuthenticated, completeLogin, logout). Auth state is seeded from
+                        localStorage so a reload restores the session; notifications only poll once authed.
     useApp.js           Re-exports useApp hook (kept separate for react-refresh compatibility)
 
   i18n/
@@ -105,6 +111,9 @@ src/
                               (monitor / freeze / close), red-border validation, POST /cases on submit
 
   views/
+    LoginView.jsx       Full-screen national-id + password login (login() → POST /auth/login), bilingual,
+                        with a collapsible demo-credentials panel. On success calls completeLogin; App.jsx
+                        renders this instead of the shell whenever isAuthenticated is false.
     CustomerView.jsx    Assembles AccountCard + CallVerification + ScamChecker + RiskReport +
                         PurchaseCheckout (receives onPurchaseFreeze from App.jsx)
     BankView.jsx        Assembles StatsCards + CasesTable + CaseDetailPanel; error banner + retry if the fetch fails; handles XLSX export
@@ -130,14 +139,22 @@ backend/
       account/                      GET /api/account/me — account row + stats COMPUTED from real activity
                                     (analyses today / last 30d, approved freezes)
       notifications/                GET /api/notifications, PATCH /api/notifications/{id}/read,
-                                    PATCH /api/notifications/read-all — rows carry type + optional caseId
+                                    PATCH /api/notifications/read-all — rows carry type + optional caseId +
+                                    recipient_national_id. Per-user filtering (NotificationServiceImpl via
+                                    CurrentUserService): officers see broadcasts (recipient NULL), customers
+                                    see only their own; a user can't read/modify another user's notification
       customers/                    GET /api/customers/{nationalId} — 4 seeded demo customers (IDs
                                     1010101010 / 2020202020 / 3030303030 / 4040404040)
       callverification/             GET /api/call-status — no params; checks the current user's registered
                                     number server-side (placeholder TODO until telephony integration; BankCall
                                     rows are the future active-calls registry)
-      fraudanalysis/                POST /api/analyze — real rule-based risk scoring, fully bilingual response
-                                    (titleAr/En, detailAr/En, recommendationAr/En, riskLabelAr/En), persists FraudCase
+      fraudanalysis/                POST /api/analyze — AI-first fraud analysis. AiEngineClient (client/) calls
+                                    the Python engine (POST {amanguard.ai.engine-url}/analyze-message, body
+                                    {message_text}); on timeout/error/non-2xx it logs a metadata-only WARN and
+                                    falls back to the existing rule-based scoring (never crashes). Response adds
+                                    analysisSource:"ai"|"rules"; still fully bilingual (titleAr/En, detailAr/En,
+                                    recommendationAr/En, riskLabelAr/En — English mirrors the Arabic-only engine
+                                    output), persists FraudCase. Never logs message text or the API key.
       emergencyfreeze/              POST /api/freeze, PATCH /api/freeze/{id}/approve|reject — request→approval workflow
       dashboard/                    GET /api/cases/active (real COUNT/SUM stats + today-vs-yesterday deltas),
                                     GET/PUT /api/cases/{id}, POST /api/cases (manual entry: reuses
@@ -158,7 +175,38 @@ backend/
       config/                       GET /api/config/thresholds → { maxPurchaseAmount, currency } — echoes
                                     the amanguard.fraud.* values from application.yaml. Read-only; shown
                                     to bank officers in SettingsPanel, never a customer form field.
-  src/main/resources/application.yaml   H2 in-memory DB, port 8080
+      auth/                         POST /api/auth/* — JWT auth, wired to the frontend. /login takes
+                                    { nationalId, password } → { token, refreshToken, role, userId, name,
+                                    nameEn } (password checked with BCrypt against AuthUser.passwordHash,
+                                    stored in the pin_hash column). /logout blacklists the access token.
+                                    AuthDataInitializer idempotently seeds the two demo logins
+                                    (customer 1234567890 / officer 0987654321, both password "Password123!").
+                                    /otp + /refresh remain as alternative auth paths but aren't used by the
+                                    current password-login frontend.
+      analytics/                    GET /api/analytics/* — SOC chart data (fraud trends, risk breakdown,
+                                    top patterns, amounts saved). Not yet consumed by the frontend.
+      audit/                        AuditLogInterceptor persists a request audit trail;
+                                    GET /api/audit-logs (bank officer only). No frontend consumer yet.
+      integration/                  Stub controllers/DTOs for future bank integrations
+                                    (/api/open-banking, /api/sms, /api/telephony, /api/merchant-registry).
+      realtime/                     WebSocket config (/ws) + RealtimePublishService + test controller —
+                                    groundwork for INT-002 live case updates; frontend not wired to it yet.
+    security/                        SecurityConfig — role-gated endpoint rules (CUSTOMER vs BANK_OFFICER,
+                                     shared endpoints .authenticated()) + JwtAuthenticationFilter (Bearer
+                                     token → Spring Security context) + registers RateLimitingFilter.
+    common/security/                 CurrentUserService — reads the JWT principal (currentNationalId(),
+                                     isOfficer()/isCustomer()); shared by AI audit logging, per-user
+                                     notification filtering, and the rate-limit key.
+    common/ratelimit/                RateLimitingFilter — in-memory Bucket4j, per-(actor, endpoint-class)
+                                     quota; actor = JWT national id, else client IP. On exceed: HTTP 429 +
+                                     Retry-After: 60 + { error, messageAr, messageEn, retryAfterSeconds }.
+  src/main/resources/application.yaml   MySQL (127.0.0.1:3306) + Flyway, JWT settings, fraud thresholds,
+                                        amanguard.ai.* (engine-url / api-key / timeout-ms / fallback-enabled), port 8080
+  src/main/resources/db/migration/      Flyway migrations: V1 schema, V2 demo seed data, V3 audit logs,
+                                        V4 adds auth_users.display_name_en (bilingual login name),
+                                        V5 adds notifications.recipient_national_id (per-user notifications)
+  src/main/resources/merchants.json     Known-merchants whitelist (transaction rule 3) — demo stand-in for a real registry
+  src/main/resources/fraud_keywords.json Suspicious URL keywords (transaction rule 2)
   README.md                             Run instructions, DB swap notes, where a future AI engine plugs in
 
 Every `feature/<name>/` package follows the same shape: `model/` (JPA entity), `repository/`,
@@ -194,7 +242,10 @@ const {
   panel,                // { type: "notifications" | "settings" | null, data }
   openPanel,            // (type, data?) => void
   closePanel,           // () => void
-  currentUser,          // { name, nameEn, role, accountId } — PLACEHOLDER, hardcoded until real JWT/session auth exists
+  currentUser,          // { name, nameEn, role } — from the login response, persisted in localStorage
+  isAuthenticated,      // bool — false renders <LoginView>, true renders the app shell (see App.jsx)
+  completeLogin,        // (loginResponse) => void — store token+user, flip into the app (called by LoginView)
+  logout,               // () => Promise — POST /auth/logout, clear the session, return to login
 } = useApp();
 ```
 
@@ -202,7 +253,7 @@ const {
 
 **Never use local panel state** — always go through `openPanel` / `closePanel`.
 
-**`currentUser` is a placeholder.** Every place that displays the logged-in user's identity (Sidebar chip, freeze-flow customer name) reads from it so swapping in real auth later is a one-line change in `AppContext.jsx`, not a repo-wide find/replace.
+**`currentUser` comes from the JWT login.** `completeLogin` writes `{ name, nameEn, role }` to localStorage (`amanguard_user`) and the access token to `amanguard_token`; `AppProvider` re-reads both on mount so a reload restores the session. `role` is the raw backend value (`"CUSTOMER"` / `"BANK_OFFICER"`) and drives the default view in `App.jsx`. Everything that shows the logged-in identity (Sidebar chip, freeze-flow customer name) reads from `currentUser`.
 
 ---
 
@@ -278,11 +329,15 @@ The `pulseSoft` keyframe animation (`animation: pulseSoft 1.5s ease-in-out infin
 
 **Files:** `src/api/fraudService.js`, `src/api/client.js`
 
-There is **no mock mode**. Every function in `fraudService.js` calls the real backend and lets errors propagate as `ApiError` (thrown from `client.js`, carrying `.message` from the backend's JSON error body and `.status`). Components own their own loading/error/retry state — see `AccountCard.jsx` and `BankView.jsx` for the pattern.
+There is **no mock mode**. Every function in `fraudService.js` calls the real backend and lets errors propagate as `ApiError` (thrown from `client.js`, carrying `.message` from the backend's JSON error body and `.status`). Components own their own loading/error/retry state — see `AccountCard.jsx` and `BankView.jsx` for the pattern. On a **429** the rate-limit body has `messageEn/messageAr` (not `message`); `client.js` falls back to those, and callers that check `err.status === 429` show the localized `rate_limit_exceeded` string inline (see ScamChecker + PurchaseCheckout).
+
+There is **no mock mode**. Every request carries the JWT Bearer token (see `client.js`); an expired/invalid session (401 outside `/auth/*`) clears storage and reloads to the login screen.
 
 ### Backend endpoints
 | Function | Method | Endpoint | Used by |
 |---|---|---|---|
+| `login(nationalId, password)` | POST | `/auth/login` | LoginView (raw fetch, bypasses the 401 handler) |
+| `logout()` | POST | `/auth/logout` | AppContext logout |
 | `getAccountInfo()` | GET | `/account/me` | AccountCard |
 | `checkCallStatus()` | GET | `/call-status` | CallVerification |
 | `analyzeText(text)` | POST | `/analyze` | ScamChecker |
@@ -304,6 +359,14 @@ There is **no mock mode**. Every function in `fraudService.js` calls the real ba
 
 ### Response shapes
 ```js
+// login → {
+//   token, refreshToken,
+//   role: "CUSTOMER" | "BANK_OFFICER",
+//   userId, name, nameEn
+// }
+// completeLogin persists token → "amanguard_token" and { name, nameEn, role }
+// → "amanguard_user". logout → { message } (local session cleared regardless).
+
 // getAccountInfo → {
 //   iban, maskedIban, balance, currency, status, securityStatus,
 //   stats: { opsToday, securityChecks, threatsStopped }
@@ -321,7 +384,8 @@ There is **no mock mode**. Every function in `fraudService.js` calls the real ba
 //   findings: [{ titleAr, titleEn, detailAr, detailEn }],
 //   recommendationAr, recommendationEn,
 //   interruptionQuestions: [{ id, text }],   // Arabic-only (not yet bilingual)
-//   caseId: number | null   // real, persisted FraudCase id — used to freeze
+//   caseId: number | null,  // real, persisted FraudCase id — used to freeze
+//   analysisSource: "ai" | "rules"   // which engine produced this result (drives the RiskReport chip)
 // }
 // Components pick the language field via `lang === "en" && en ? en : ar` —
 // English falls back to Arabic, never undefined.
@@ -397,8 +461,23 @@ For blocked results, `App.jsx#handlePurchaseBlocked` injects the case into the b
 frontend never calls `/freeze` for blocked purchases. Auto-created cases also appear via the
 existing 60-second notification/dashboard polling.
 
-### `/analyze` is real, rule-based analysis — not an ML model
-`FraudAnalysisServiceImpl` (backend) does deterministic keyword matching (OTP requests, urgency phrasing, suspicious links, remote-access-tool mentions, etc.) to compute `riskScore`/`findings`. It's genuine server-side computation, not a stub — but it's not a trained model either. A future Python AI engine would replace/augment this scoring; see `backend/README.md` for where that would plug in. The response contract wouldn't need to change, so no frontend work would be required when that happens.
+### `/analyze` — AI engine first, rule-based fallback
+`FraudAnalysisServiceImpl` (backend) calls the Python AI engine via `AiEngineClient` when
+`amanguard.ai.fallback-enabled` is true (default): `POST {amanguard.ai.engine-url}/analyze-message`
+with `{ "message_text": text }`, connect timeout 5s / read timeout `amanguard.ai.timeout-ms` (8s). The
+engine (`AI/phishingGPT.py`, FastAPI + OpenAI, keyless on `localhost:8000`) returns Arabic-only
+`{ is_phishing, risk_score, risk_level, recommended_action, reasons, red_flags }`, which the backend maps
+into the existing `AnalyzeFraudResponse` (English fields mirror the Arabic; labels/questions/`caseId` reuse
+the existing helpers) and tags `analysisSource: "ai"`. On any timeout/error/non-2xx it logs a WARN with
+**metadata only** (userId + text length — never message content) and runs the original deterministic keyword
+scoring (OTP requests, urgency phrasing, suspicious links, remote-access-tool mentions, …), tagged
+`analysisSource: "rules"`. The frontend `/api/analyze` JSON contract is unchanged apart from the added
+`analysisSource` (surfaced as a gold "AI" / gray "rules" chip in `RiskReport`).
+
+**Security invariants (never violate):** `AiEngineClient` adds `Authorization: Bearer` only when
+`amanguard.ai.api-key` is non-blank; the API key and the analyzed text are never logged, returned in any
+response body, or committed. TLS verification is never disabled. The engine's own `OPENAI_API_KEY` lives
+only in the Python `.env` and is never referenced in Java or in logs.
 
 ---
 
@@ -454,42 +533,51 @@ npm run lint         # ESLint check
 npm test             # Run the Vitest suite
 
 # Backend (from backend/)
-./mvnw spring-boot:run   # → http://localhost:8080/api, H2 in-memory DB
+./mvnw spring-boot:run   # → http://localhost:8080/api — needs MySQL on 127.0.0.1:3306
+                         #   (database amanguard_db; Flyway runs the migrations on startup)
+
+# Optional AI engine (from AI/) — start it so /api/analyze uses AI; if it's down,
+# analysis automatically falls back to rule-based scoring (never crashes).
+python phishingGPT.py    # → http://localhost:8000  (needs OPENAI_API_KEY in AI/.env)
 ```
 
 The frontend expects the backend running at `VITE_API_BASE_URL` (default `http://localhost:8080/api`) — there's no mock fallback, so components will show their error/retry states if it's down. See `backend/README.md` for backend-specific setup (DB swap, AI engine integration point).
 
 ---
 
-## What's Done ✅
+## Current State
 
-- Full customer portal (one-button call verify — no user input, server-side lookup via GET /api/call-status — fraud text analysis, risk report, emergency freeze)
-- Full bank SOC dashboard (stats, case table with live relative timestamps, case detail drawer with actions)
-- Backend fully wired end-to-end — no mock/fallback layer; every screen fetches real data and has loading/error/retry states
-- Freeze request → bank-approval workflow (customer-initiated freezes are PENDING until staff approve; staff-initiated freezes approve immediately)
-- Dark / light theme toggle
-- Arabic / English language toggle (full RTL/LTR swap)
-- Notifications panel (fetched from backend, slide-in, loading skeleton, mark-all-read)
-- Settings panel (theme + language pickers)
-- Sign out confirmation
-- XLSX export of cases
-- Real-time purchase verification with AI risk gating (PurchaseCheckout → analyze → allow /
-  full-screen interception overlay / auto-block, with auto-created SOC cases + notifications;
-  scoring is a placeholder rule engine marked `TODO: replace with real AI engine`)
-- `currentUser` placeholder in AppContext (see Global State section)
-- Full Vitest suite, mocking the network layer directly (no ambient backend dependency)
-- Correct financial-domain Arabic translations throughout
+What genuinely works end-to-end right now (frontend ↔ backend), what exists on one side only, and what's missing.
+
+**Working end-to-end (when the backend endpoints are reachable):**
+- **Authentication** — national-id + password login (`LoginView` → POST /api/auth/login), JWT stored in localStorage and sent as a Bearer header on every request, 401 → auto-logout to the login screen, role-based default view (officer → bank, customer → portal), Sidebar sign-out. `currentUser` is populated from the login response (no longer a placeholder). Demo logins: customer `1234567890` / officer `0987654321`, both password `Password123!`.
+- **AI-first fraud analysis** — POST /api/analyze calls the Python AI engine and falls back to rule-based scoring if it's unreachable; `RiskReport` shows a gold "Analyzed by AI" / gray "Rule-based" chip from `analysisSource`
+- **Per-endpoint rate limiting** — Bucket4j filter (analyze 30/min, auth/login 5/min/IP, transactions/analyze 20/min, freeze 10/min, else 100/min); 429 surfaces inline (`rate_limit_exceeded`) in ScamChecker + PurchaseCheckout, not a modal
+- **Role-based access** — a customer only ever sees the portal and an officer only the SOC dashboard (Sidebar renders one nav item; App.jsx derives the view from role so it can't be switched), enforced again in SecurityConfig; notifications are scoped per user
+- Full customer portal: one-button call verify (GET /api/call-status), fraud text analysis (POST /api/analyze), risk report, emergency freeze, purchase simulation with allow / suspend (interception overlay) / block gating
+- Full bank SOC dashboard: live stats with trend deltas, sortable/searchable case table with relative timestamps, case detail drawer with freeze / escalate / dismiss / edit, manual case entry with national-id autofill, XLSX export
+- Freeze request → bank-approval workflow (customer freezes are PENDING until staff approve; staff freezes approve immediately)
+- Notifications: backend-fetched, 60s polling, mark read / mark all read, click-through to the linked case
+- Dark/light theme, Arabic/English toggle with full RTL/LTR swap, correct financial-domain Arabic throughout
+- Full Vitest suite mocking the network layer directly (no ambient backend dependency); `npm run lint` and `npm run build` clean
+
+**Backend-only (implemented server-side, no frontend consumer yet):**
+- **Analytics** — GET /api/analytics/* chart data endpoints
+- **Audit trail** — request interceptor + GET /api/audit-logs
+- **WebSocket realtime** — `/ws` config + publish service (INT-002 groundwork); the bank dashboard still simulates live updates by prop injection (`App.jsx` → `BankView`'s `injectedCase`) + polling
+- **Integration stubs** — open-banking / SMS / telephony / merchant-registry placeholder endpoints
+- **Interruption-question scoring** — POST /api/verifications/evaluate exists; `RiskReport`'s 3 checkboxes are still local UI state only
 
 ## What's NOT Done Yet ❌
 
-- **Authentication** — No login screen or JWT handling. `App.jsx` renders directly without an auth guard, and `currentUser` in `AppContext.jsx` is a hardcoded placeholder.
-- **Real AI model** — `/analyze` is deterministic rule-based scoring (see API Layer above), not a trained ML model. A Python AI engine is future work.
-- **WebSockets** — MVP spec mentions real-time case updates (INT-002) for when a customer freezes their account. Currently simulated by prop injection (`App.jsx` → `BankView`'s `injectedCase`).
-- **Responsive / mobile layout** — Designed for desktop (1080px+). Sidebar collapses on narrow screens are not yet implemented.
+- **Token refresh in the UI** — the frontend does not call POST /api/auth/refresh; when the 30-minute access token expires, the next request 401s and drops the user to the login screen (the refresh token is issued and stored but unused client-side).
+- **Registration / account management** — login only; no signup, password change, or user admin. Demo users are seeded by `AuthDataInitializer`.
+- **AI on the purchase path** — `/api/analyze` now calls the Python AI engine (with automatic rule-based fallback), but `/api/transactions/analyze` is still deterministic rule-based scoring (merchant whitelist + URL keyword lists in `backend/src/main/resources/merchants.json` / `fraud_keywords.json`) and is not yet wired to the engine. The engine itself (`AI/phishingGPT.py`) is OpenAI-backed, not a locally trained model, and emits Arabic-only output (English findings mirror the Arabic until the engine is bilingual).
+- **Frontend WebSockets** — backend `/ws` exists; the frontend still relies on polling + prop injection.
+- **Responsive / mobile layout** — Designed for desktop (1080px+); only the sidebar has a mobile drawer.
 - **Real search in Topbar** — The search input in the header has no handler yet.
 - **Pagination** — Cases table shows the 20 most recent cases with no pagination.
 - **Bilingual interruption questions** — analysis findings/recommendations/labels are bilingual, but the 3 interruption questions are still Arabic-only.
-- **Interruption-questions submission** — `RiskReport`'s 3 checkboxes are local UI state only; the backend has a matching `POST /verifications/evaluate` endpoint but nothing calls it yet.
 
 ---
 

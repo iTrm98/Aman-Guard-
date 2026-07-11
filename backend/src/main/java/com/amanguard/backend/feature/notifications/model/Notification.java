@@ -36,12 +36,17 @@ public class Notification {
     @Column(name = "case_id")
     private Long caseId;
 
+    // NULL = officer broadcast; a national id = that customer's own notification.
+    @Column(name = "recipient_national_id", length = 20)
+    private String recipientNationalId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     public Notification() {
     }
 
+    // Broadcast (officer-audience) notification — used by the SOC creation sites.
     public Notification(
             String icon,
             String titleAr,
@@ -53,6 +58,21 @@ public class Notification {
             Long caseId,
             LocalDateTime createdAt
     ) {
+        this(icon, titleAr, titleEn, bodyAr, bodyEn, read, type, caseId, null, createdAt);
+    }
+
+    public Notification(
+            String icon,
+            String titleAr,
+            String titleEn,
+            String bodyAr,
+            String bodyEn,
+            boolean read,
+            String type,
+            Long caseId,
+            String recipientNationalId,
+            LocalDateTime createdAt
+    ) {
         this.icon = icon;
         this.titleAr = titleAr;
         this.titleEn = titleEn;
@@ -61,6 +81,7 @@ public class Notification {
         this.read = read;
         this.type = type;
         this.caseId = caseId;
+        this.recipientNationalId = recipientNationalId;
         this.createdAt = createdAt;
     }
 
@@ -102,6 +123,10 @@ public class Notification {
 
     public Long getCaseId() {
         return caseId;
+    }
+
+    public String getRecipientNationalId() {
+        return recipientNationalId;
     }
 
     public LocalDateTime getCreatedAt() {

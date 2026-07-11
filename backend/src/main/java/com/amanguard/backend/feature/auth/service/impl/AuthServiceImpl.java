@@ -92,48 +92,30 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        AuthUser user = findUserByIdentifier(request.identifier());
+        // Generic message for both unknown id and wrong password so the
+        // endpoint doesn't reveal which national ids exist.
+        AuthUser user = authUserRepository
+                .findByNationalId(request.nationalId())
+                .orElseThrow(() ->
+                        new BadRequestException(
+                                "رقم الهوية أو كلمة المرور غير صحيحة"
+                        )
+                );
 
         if (!user.isEnabled()) {
             throw new BadRequestException("هذا المستخدم غير مفعل");
         }
 
-        AuthOtp otp = authOtpRepository
-                .findTopByIdentifierAndUsedFalseOrderByCreatedAtDesc(
-                        request.identifier()
-                )
-                .orElseThrow(() ->
-                        new BadRequestException(
-                                "لا يوجد رمز تحقق فعال لهذا المستخدم"
-                        )
-                );
-
-        if (otp.isExpired()) {
-            throw new BadRequestException("انتهت صلاحية رمز التحقق");
-        }
-
         if (!passwordEncoder.matches(
-                request.otp(),
-                otp.getCodeHash()
+                request.password(),
+                user.getPasswordHash()
         )) {
-            throw new BadRequestException("رمز التحقق غير صحيح");
+            throw new BadRequestException(
+                    "رقم الهوية أو كلمة المرور غير صحيحة"
+            );
         }
 
-        if (request.pin() != null
-                && !request.pin().isBlank()
-                && !passwordEncoder.matches(
-                request.pin(),
-                user.getPinHash()
-        )) {
-            throw new BadRequestException("رمز PIN غير صحيح");
-        }
-
-        LoginResponse loginResponse = issueTokens(user);
-
-        otp.markUsed();
-        authOtpRepository.save(otp);
-
-        return loginResponse;
+        return issueTokens(user);
     }
 
     @Override
@@ -200,12 +182,10 @@ public class AuthServiceImpl implements AuthService {
         return new LoginResponse(
                 accessToken,
                 refreshToken,
-                "Bearer",
-                jwtService.getAccessTokenSeconds(),
                 user.getRole().name(),
-                user.getNationalId(),
-                user.getAccountNumber(),
-                user.getDisplayName()
+                user.getId(),
+                user.getDisplayName(),
+                user.getDisplayNameEn()
         );
     }
 

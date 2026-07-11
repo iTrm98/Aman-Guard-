@@ -4,20 +4,26 @@ import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead as apiMarkNotificationRead,
+  logout as apiLogout,
 } from "../api/fraudService";
+import { TOKEN_KEY, USER_KEY } from "../api/client";
 
 const NOTIFICATIONS_POLL_MS = 60000;
 
 const AppContext = createContext(null);
 
-// Placeholder until real JWT/session auth is added — every place that shows
-// the logged-in user's identity should read from this instead of a literal.
-const CURRENT_USER = {
-  name: "نواف العتيبي",
-  nameEn: "Nawaf Al-Otaibi",
-  role: "customer",
-  accountId: "SA0000000000000000004821",
-};
+// Identity before a session is loaded, or if the stored blob is missing/corrupt.
+// Real values come from the login response (see completeLogin) and are persisted
+// to localStorage so a page reload restores the session without re-login.
+const DEFAULT_USER = { name: "مستخدم", nameEn: "User", role: "CUSTOMER" };
+
+function readStoredUser() {
+  try {
+    return { ...DEFAULT_USER, ...JSON.parse(localStorage.getItem(USER_KEY) ?? "{}") };
+  } catch {
+    return DEFAULT_USER;
+  }
+}
 
 export function AppProvider({ children }) {
   const [lang,          setLang]          = useState("ar");
@@ -26,7 +32,8 @@ export function AppProvider({ children }) {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [modal,         setModal]         = useState({ open: false });
   const [panel,         setPanel]         = useState(null); // { type, data }
-  const [currentUser]   = useState(CURRENT_USER);
+  const [currentUser,   setCurrentUser]   = useState(readStoredUser);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem(TOKEN_KEY));
 
   const refreshNotifications = useCallback(async () => {
     try {
@@ -37,10 +44,14 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Fetch notifications on mount, then poll for new ones. Failures are
-  // caught (not rethrown) so a down backend degrades to an empty list
-  // instead of breaking every screen that reads from AppContext.
+  // Notifications belong to an authenticated session. Polling before login
+  // would fire tokenless requests that 401 and bounce the app to /login, so
+  // this only runs once a session exists (and re-runs right after login).
+  // The signed-out reset lives in logout(), not here, to keep setState out of
+  // the effect body.
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     let cancelled = false;
     getNotifications()
       .then((data) => {
@@ -55,7 +66,7 @@ export function AppProvider({ children }) {
 
     const interval = setInterval(refreshNotifications, NOTIFICATIONS_POLL_MS);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [refreshNotifications]);
+  }, [isAuthenticated, refreshNotifications]);
 
   // Apply theme to root element
   useEffect(() => {
@@ -98,6 +109,36 @@ export function AppProvider({ children }) {
     });
   }
 
+  // Persist the login response and flip into the authenticated app. The stored
+  // user shape ({ name, nameEn, role }) is what the Sidebar chip and App.jsx
+  // freeze flow read, and role drives the default view (see App.jsx).
+  const completeLogin = useCallback((loginResponse) => {
+    const user = {
+      name: loginResponse.name,
+      nameEn: loginResponse.nameEn ?? loginResponse.name,
+      role: loginResponse.role,
+    };
+    localStorage.setItem(TOKEN_KEY, loginResponse.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+  }, []);
+
+  const logout = useCallback(async () => {
+    // apiLogout blacklists the token server-side and clears localStorage; it is
+    // best-effort, so we drop the local session even if the request fails.
+    try {
+      await apiLogout();
+    } catch {
+      /* server logout is best-effort */
+    }
+    setIsAuthenticated(false);
+    setCurrentUser(DEFAULT_USER);
+    // Drop cached notifications so the next session starts clean.
+    setNotifications([]);
+    setNotificationsLoading(true);
+  }, []);
+
   const showModal = useCallback((config) => {
     setModal({ open: true, type: "info", showCancel: false, ...config });
   }, []);
@@ -112,7 +153,7 @@ export function AppProvider({ children }) {
       notifications, notificationsLoading, markAllRead, markNotificationRead, refreshNotifications, unreadCount,
       modal, showModal, closeModal,
       panel, openPanel, closePanel,
-      currentUser,
+      currentUser, isAuthenticated, completeLogin, logout,
     }}>
       {children}
     </AppContext.Provider>

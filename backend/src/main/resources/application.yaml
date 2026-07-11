@@ -3,7 +3,7 @@ spring:
     name: amanguard-backend
 
   datasource:
-    url: jdbc:mysql://127.0.0.1:3307/amanguard_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    url: jdbc:mysql://127.0.0.1:3306/amanguard_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
     username: amanguard_user
     password: AmanGuard@12345
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -29,6 +29,18 @@ amanguard:
   fraud:
     max-purchase-amount: 5000
     currency: SAR
+
+  ai:
+    # Python fraud-analysis engine (AI/phishingGPT.py). Resolved from OS env
+    # vars, not the root .env (that file belongs to Vite + the Python engine).
+    engine-url: ${AI_ENGINE_URL:http://localhost:8000}
+    # Optional backend->engine bearer token. The current engine is keyless, so
+    # this defaults empty and no Authorization header is sent unless it is set.
+    api-key: ${AI_API_KEY:}
+    timeout-ms: 8000
+    # When true, /api/analyze uses the AI engine and falls back to rule-based
+    # scoring if it is unreachable/errors. When false, rules are used directly.
+    fallback-enabled: true
 
   auth:
     issuer: AmanGuard

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Settings, Sun, Moon, ShieldAlert } from "lucide-react";
 import { getThresholds } from "../../api/fraudService";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 
 export default function SettingsPanel({ onClose, view }) {
   const { t, theme, toggleTheme, lang, toggleLang } = useApp();
@@ -114,9 +114,9 @@ export default function SettingsPanel({ onClose, view }) {
           <Section label="AmanGuard">
             <div style={{ background:"var(--bg-subtle)", border:"1px solid var(--border)", borderRadius:12, padding:14 }}>
               {[
-                { label: lang === "ar" ? "الإصدار" : "Version",   val: "v1.0.0-demo" },
-                { label: lang === "ar" ? "البيئة"  : "Env",       val: "Mock Mode"   },
-                { label: lang === "ar" ? "المحرك"  : "AI Engine", val: "v2.1"        },
+                { label: t("app_version"), val: "v1.0.0"       },
+                { label: t("app_env"),     val: t("env_live")  },
+                { label: t("app_engine"),  val: "v2.1"         },
               ].map(({ label, val }) => (
                 <div key={label} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid var(--border-subtle)", fontSize:13 }}>
                   <span style={{ color:"var(--text-muted)" }}>{label}</span>

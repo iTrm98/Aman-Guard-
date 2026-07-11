@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, FilePlus2, Loader2 } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 import { createCase, getCustomerByNationalId } from "../../api/fraudService";
 import { apiErrorMessage, ApiError } from "../../api/client";
 import { FRAUD_PATTERNS } from "../../i18n/fraudPatterns";

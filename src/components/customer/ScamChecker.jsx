@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { ScanText, Sparkles, Loader2 } from "lucide-react";
 import { analyzeText } from "../../api/fraudService";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 
 export default function ScamChecker({ onResult, onValidationError }) {
   const { t } = useApp();
   const [text,      setText]      = useState("");
   const [loading,   setLoading]   = useState(false);
   const [hasResult, setHasResult] = useState(false);
+  const [error,     setError]     = useState(null);
 
   async function handleAnalyze() {
     if (!text.trim()) { onValidationError?.(); return; }
-    setLoading(true);
+    setLoading(true); setError(null);
     try {
       const result = await analyzeText(text);
       onResult?.(result); setHasResult(true);
+    } catch (err) {
+      setError(err?.status === 429 ? t("rate_limit_exceeded") : t("data_load_error"));
     } finally { setLoading(false); }
   }
 
@@ -52,6 +55,8 @@ export default function ScamChecker({ onResult, onValidationError }) {
           {t("analyzing")}
         </div>
       )}
+
+      {error && <p style={{ fontSize:12, textAlign:"center", color:"var(--red)" }}>{error}</p>}
 
       <button onClick={handleAnalyze} disabled={loading || !text.trim()} className="btn-primary" style={{ width:"100%" }}>
         <Sparkles style={{ width:16, height:16 }} />

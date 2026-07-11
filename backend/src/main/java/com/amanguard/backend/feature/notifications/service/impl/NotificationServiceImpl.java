@@ -1,6 +1,7 @@
 package com.amanguard.backend.feature.notifications.service.impl;
 
 import com.amanguard.backend.common.exception.ResourceNotFoundException;
+import com.amanguard.backend.common.security.CurrentUserService;
 import com.amanguard.backend.feature.notifications.dto.response.NotificationResponse;
 import com.amanguard.backend.feature.notifications.model.Notification;
 import com.amanguard.backend.feature.notifications.repository.NotificationRepository;
@@ -18,22 +19,50 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final RealtimePublishService realtimePublishService;
+    private final CurrentUserService currentUserService;
 
     public NotificationServiceImpl(
             NotificationRepository notificationRepository,
-            RealtimePublishService realtimePublishService
+            RealtimePublishService realtimePublishService,
+            CurrentUserService currentUserService
     ) {
         this.notificationRepository = notificationRepository;
         this.realtimePublishService = realtimePublishService;
+        this.currentUserService = currentUserService;
     }
 
     @Override
     public List<NotificationResponse> getNotifications() {
-        return notificationRepository
-                .findAllNewestFirst()
+        return visibleNotifications()
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    // Officers see SOC broadcasts (no recipient); customers see only their own.
+    private List<Notification> visibleNotifications() {
+        if (currentUserService.isOfficer()) {
+            return notificationRepository
+                    .findByRecipientNationalIdIsNullOrderByCreatedAtDesc();
+        }
+
+        String nationalId = currentUserService.currentNationalId();
+        if (nationalId == null) {
+            return List.of();
+        }
+
+        return notificationRepository
+                .findByRecipientNationalIdOrderByCreatedAtDesc(nationalId);
+    }
+
+    private boolean isVisibleToCurrentUser(Notification notification) {
+        if (currentUserService.isOfficer()) {
+            return notification.getRecipientNationalId() == null;
+        }
+
+        String nationalId = currentUserService.currentNationalId();
+        return nationalId != null
+                && nationalId.equals(notification.getRecipientNationalId());
     }
 
     @Override
@@ -46,6 +75,13 @@ public class NotificationServiceImpl implements NotificationService {
                                 "الإشعار غير موجود: " + notificationId
                         )
                 );
+
+        // Don't let a user read/modify a notification that isn't theirs.
+        if (!isVisibleToCurrentUser(notification)) {
+            throw new ResourceNotFoundException(
+                    "الإشعار غير موجود: " + notificationId
+            );
+        }
 
         notification.markRead();
 
@@ -63,8 +99,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional
     public void markAllRead() {
-        List<Notification> notifications =
-                notificationRepository.findAll();
+        List<Notification> notifications = visibleNotifications();
 
         notifications.forEach(Notification::markRead);
 

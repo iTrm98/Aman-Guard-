@@ -55,7 +55,7 @@ export default function PurchaseCheckout({ onPurchaseFreeze, onPurchaseBlocked }
       // critical) — inject it into the bank dashboard, no overlay.
       if (res.action === "blocked") onPurchaseBlocked?.(res);
     } catch (err) {
-      setError(apiErrorMessage(err, t("data_load_error")));
+      setError(err?.status === 429 ? t("rate_limit_exceeded") : apiErrorMessage(err, t("data_load_error")));
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, RefreshCw, Download, ChevronDown, ChevronUp, Skull, AlertTriangle, AlertCircle } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 import { useRelativeTime } from "../../hooks/useRelativeTime";
 import { displayFraudPattern } from "../../i18n/fraudPatterns";
 
@@ -104,7 +104,7 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t("search_ph")} className="input-field"
               style={{ paddingTop:6, paddingBottom:6, paddingInlineEnd:32, fontSize:13 }} />
           </div>
-          <button onClick={onRefresh} className="btn-ghost" style={{ padding:"6px 10px" }} title="Refresh">
+          <button onClick={onRefresh} className="btn-ghost" style={{ padding:"6px 10px" }} title={t("refresh")}>
             <RefreshCw style={{ width:14, height:14 }} />
           </button>
           <button onClick={onExport} className="btn-ghost" style={{ padding:"6px 12px" }}>

@@ -1,5 +1,5 @@
 import { Search, Bell, Sun, Moon, Menu } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 
 export default function Topbar({ view, onOpenMobileNav }) {
   const { t, theme, toggleTheme, lang, toggleLang, unreadCount, openPanel } = useApp();
@@ -41,7 +41,7 @@ export default function Topbar({ view, onOpenMobileNav }) {
         {/* Language toggle */}
         <button
           onClick={toggleLang}
-          title={lang === "ar" ? "Switch to English" : "التبديل للعربية"}
+          title={t("switch_language")}
           style={{ width:36, height:36, borderRadius:10, background:"var(--bg-subtle)", border:"1.5px solid var(--border)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--text-secondary)", fontWeight:700, fontSize:11, transition:"all 0.15s" }}
         >
           {lang === "ar" ? "EN" : "عر"}

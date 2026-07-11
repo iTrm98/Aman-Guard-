@@ -34,12 +34,18 @@ public class AuthUser {
     @Column(name = "display_name", nullable = false, length = 120)
     private String displayName;
 
+    @Column(name = "display_name_en", length = 120)
+    private String displayNameEn;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private UserRole role;
 
+    // BCrypt hash of the user's login password. The column keeps its original
+    // name (pin_hash) for schema stability; the field name reflects its
+    // current use as the password credential store.
     @Column(name = "pin_hash", nullable = false, length = 120)
-    private String pinHash;
+    private String passwordHash;
 
     @Column(name = "refresh_token_hash", length = 200)
     private String refreshTokenHash;
@@ -61,15 +67,17 @@ public class AuthUser {
             String accountNumber,
             String phone,
             String displayName,
+            String displayNameEn,
             UserRole role,
-            String pinHash
+            String passwordHash
     ) {
         this.nationalId = nationalId;
         this.accountNumber = accountNumber;
         this.phone = phone;
         this.displayName = displayName;
+        this.displayNameEn = displayNameEn;
         this.role = role;
-        this.pinHash = pinHash;
+        this.passwordHash = passwordHash;
         this.enabled = true;
     }
 
@@ -105,12 +113,16 @@ public class AuthUser {
         return displayName;
     }
 
+    public String getDisplayNameEn() {
+        return displayNameEn;
+    }
+
     public UserRole getRole() {
         return role;
     }
 
-    public String getPinHash() {
-        return pinHash;
+    public String getPasswordHash() {
+        return passwordHash;
     }
 
     public String getRefreshTokenHash() {

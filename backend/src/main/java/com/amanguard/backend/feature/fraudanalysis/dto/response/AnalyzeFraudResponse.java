@@ -11,6 +11,7 @@ public record AnalyzeFraudResponse(
         String recommendationAr,
         String recommendationEn,
         List<InterruptionQuestionResponse> interruptionQuestions,
-        Long caseId
+        Long caseId,
+        String analysisSource
 ) {
 }

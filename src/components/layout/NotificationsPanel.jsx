@@ -1,5 +1,5 @@
 import { X, Bell, Check } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 import { useRelativeTime } from "../../hooks/useRelativeTime";
 
 // Explicit map — never build translation keys dynamically from API data.

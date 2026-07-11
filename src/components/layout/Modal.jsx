@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 
 const CONFIG = {
   danger:  { Icon: AlertTriangle, accent: "var(--red)",   iconBg: "rgba(192,57,43,0.1)"  },

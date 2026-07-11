@@ -21,7 +21,45 @@
 // failures throw an ApiError and the calling component is responsible for
 // its own loading/error UI.
 
-import { apiClient } from "./client";
+import { apiClient, ApiError, BASE_URL, TOKEN_KEY, USER_KEY } from "./client";
+
+/**
+ * POST /auth/login — exchange national id + password for a JWT session.
+ * Uses raw fetch (not apiClient) so a bad-credentials 401 surfaces as a normal
+ * ApiError here instead of triggering the client's session-expiry reload.
+ * Response: { token, refreshToken, role, userId, name, nameEn }
+ */
+export async function login(nationalId, password) {
+  const res = await fetch(`${BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nationalId, password }),
+  });
+  if (!res.ok) {
+    let message = "Invalid credentials";
+    try {
+      const data = await res.json();
+      message = data?.message || message;
+    } catch {
+      /* ignore parse errors */
+    }
+    throw new ApiError(message, res.status);
+  }
+  return res.json();
+}
+
+/**
+ * POST /auth/logout — best-effort server-side token blacklist. The local
+ * session is cleared regardless of whether the request succeeds.
+ */
+export async function logout() {
+  try {
+    await apiClient.post("/auth/logout", {});
+  } finally {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  }
+}
 
 /**
  * GET /account/me

@@ -3,9 +3,7 @@
 
 const T = {
   // ── Brand ───────────────────────────────────────────────────────────────
-  brand_name:    { ar: "أمان‌ جارد",            en: "AmanGuard" },
   brand_sub:     { ar: "ذكاء مكافحة الاحتيال المالي", en: "Financial Fraud Intelligence" },
-  hackathon_tag: { ar: "مسار التشريعات المالية — هاكاثون أمد", en: "Financial Regulations Track — Amad Hackathon" },
 
   // ── Sidebar ──────────────────────────────────────────────────────────────
   nav_label:       { ar: "التنقل",                       en: "Navigation" },
@@ -29,6 +27,7 @@ const T = {
   system_active:         { ar: "نظام فعال",                                        en: "System Active" },
   theme_dark:            { ar: "الوضع الداكن",                                    en: "Dark Mode" },
   theme_light:           { ar: "الوضع الفاتح",                                    en: "Light Mode" },
+  switch_language:       { ar: "التبديل إلى الإنجليزية",                          en: "Switch to Arabic" },
 
   // ── Account Card ─────────────────────────────────────────────────────────
   account_main:       { ar: "الحساب الجاري الرئيسي",  en: "Primary Current Account" },
@@ -41,10 +40,22 @@ const T = {
   ops_vs_yesterday:   { ar: "مقارنةً بالأمس",          en: "vs yesterday" },
   last_30d:           { ar: "آخر ٣٠ يوماً",            en: "Last 30 days" },
   this_month:         { ar: "هذا الشهر",               en: "This month" },
-  transaction_detail: { ar: "تفاصيل العمليات",          en: "Transaction Details" },
   close:              { ar: "إغلاق",                   en: "Close" },
+  hide_balance:       { ar: "إخفاء الرصيد",             en: "Hide balance" },
+  show_balance:       { ar: "إظهار الرصيد",             en: "Show balance" },
   data_load_error:    { ar: "تعذر تحميل البيانات. حاول مرة أخرى.", en: "Failed to load data. Please try again." },
   retry_btn:          { ar: "إعادة المحاولة",            en: "Retry" },
+
+  // ── AI Engine & Rate Limiting ────────────────────────────────────────────
+  ai_engine_label:    { ar: "محرك الذكاء الاصطناعي",                        en: "AI Engine" },
+  ai_engine_active:   { ar: "محرك الذكاء الاصطناعي نشط",                    en: "AI engine active" },
+  ai_engine_fallback: { ar: "تم التحويل إلى محرك القواعد الاحتياطي",        en: "Fell back to the rule engine" },
+  ai_engine_error:    { ar: "تعذّر الوصول إلى محرك الذكاء الاصطناعي",       en: "Could not reach the AI engine" },
+  analysis_by_ai:     { ar: "تحليل بالذكاء الاصطناعي",                      en: "Analyzed by AI" },
+  analysis_by_rules:  { ar: "تحليل بمحرك القواعد",                         en: "Rule-based analysis" },
+  rate_limit_exceeded:{ ar: "لقد تجاوزت عدد المحاولات المسموح بها. يرجى المحاولة بعد قليل.", en: "You've made too many attempts. Please try again shortly." },
+  access_denied:      { ar: "ليس لديك صلاحية للوصول إلى هذه الصفحة.",       en: "You don't have permission to access this." },
+  too_many_requests:  { ar: "طلبات كثيرة جداً. حاول مرة أخرى لاحقاً.",       en: "Too many requests. Please try again later." },
 
   // ── Call Verification ────────────────────────────────────────────────────
   call_title:        { ar: "التحقق من مكالمة البنك",                                    en: "Bank Call Verification" },
@@ -77,7 +88,6 @@ const T = {
   tx_allowed_desc:       { ar: "تم التحقق من المتجر ولم يُرصد أي نشاط مريب.",    en: "Merchant verified, no suspicious activity detected." },
   tx_confirmed_title:    { ar: "تم التنفيذ",                                      en: "Completed" },
   tx_confirmed_desc:     { ar: "تم التنفيذ. شكراً لتأكيد العملية. سيتم استكمال الدفع بشكل آمن.", en: "Completed. Thank you for confirming. Payment will proceed safely." },
-  tx_cancelled_desc:     { ar: "تم إلغاء العملية. أحسنت في الحذر.",              en: "Transaction cancelled. Good call on being cautious." },
   tx_blocked_title:      { ar: "تم حظر العملية تلقائياً",                        en: "Transaction Automatically Blocked" },
   tx_blocked_desc:       { ar: "رصد النظام نمط احتيال واضح. تم منع العملية فوراً لحماية أموالك.", en: "The system detected a clear fraud pattern. The transaction was blocked immediately to protect your funds." },
   tx_blocked_notified:   { ar: "تم إشعار فريق الأمن المالي. سيتواصلون معك قريباً.", en: "The financial security team has been notified and will contact you shortly." },
@@ -164,7 +174,6 @@ const T = {
   case_detail_title:  { ar: "تفاصيل الحالة",                en: "Case Details" },
   case_id:            { ar: "رقم البلاغ",                   en: "Report ID" },
   case_reported_at:   { ar: "وقت الإبلاغ",                  en: "Reported At" },
-  case_pattern:       { ar: "نمط الاحتيال",                 en: "Fraud Pattern" },
   case_risk:          { ar: "درجة الخطر",                   en: "Risk Score" },
   case_status:        { ar: "حالة الحساب",                  en: "Account Status" },
   case_timeline:      { ar: "مسار الحالة",                  en: "Case Timeline" },
@@ -233,6 +242,22 @@ const T = {
   lang_english:        { ar: "الإنجليزية",              en: "English" },
   mode_light:          { ar: "فاتح",                    en: "Light" },
   mode_dark:           { ar: "داكن",                    en: "Dark" },
+  app_version:         { ar: "الإصدار",                 en: "Version" },
+  app_env:             { ar: "البيئة",                  en: "Env" },
+  app_engine:          { ar: "المحرك",                  en: "AI Engine" },
+  env_live:            { ar: "مباشر",                   en: "Live" },
+
+  // ── Login ────────────────────────────────────────────────────────────────
+  login_title:        { ar: "تسجيل الدخول",                        en: "Sign In" },
+  login_subtitle:     { ar: "أدخل بياناتك للوصول إلى منصة أمان‌جارد", en: "Enter your credentials to access AmanGuard" },
+  national_id:        { ar: "رقم الهوية الوطنية",                  en: "National ID" },
+  password:           { ar: "كلمة المرور",                         en: "Password" },
+  login_btn:          { ar: "دخول",                                en: "Sign In" },
+  login_error:        { ar: "رقم الهوية أو كلمة المرور غير صحيحة", en: "Invalid national ID or password" },
+  logging_in:         { ar: "جارٍ تسجيل الدخول...",                en: "Signing in..." },
+  demo_credentials:   { ar: "بيانات تجريبية",                      en: "Demo Credentials" },
+  demo_customer:      { ar: "عميل",                                en: "Customer" },
+  demo_officer:       { ar: "موظف بنك",                            en: "Bank Officer" },
 
   // ── Logout ───────────────────────────────────────────────────────────────
   logout_title:  { ar: "تسجيل الخروج",                          en: "Sign Out" },

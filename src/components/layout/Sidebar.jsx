@@ -1,8 +1,10 @@
 import { ShieldCheck, LayoutDashboard, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
+
+const ROLE_VIEW = { CUSTOMER: "customer", BANK_OFFICER: "bank" };
 
 export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile }) {
-  const { t, lang, unreadCount, openPanel, showModal, currentUser } = useApp();
+  const { t, lang, unreadCount, openPanel, showModal, currentUser, logout } = useApp();
   const displayName = lang === "en" ? currentUser.nameEn : currentUser.name;
 
   const NAV = [
@@ -10,13 +12,20 @@ export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile 
     { id:"bank",     labelKey:"nav_bank",     Icon:LayoutDashboard },
   ];
 
+  // Each real role owns exactly one view: show only that nav item (the other is
+  // removed from the DOM) and drop the demo view-switch hint. An unknown/missing
+  // role falls back to the demo experience — both items plus the hint.
+  const allowedView  = ROLE_VIEW[currentUser.role];
+  const visibleNav   = allowedView ? NAV.filter((n) => n.id === allowedView) : NAV;
+  const showDemoHint = !allowedView;
+
   const ChevronActive = lang === "ar" ? ChevronLeft : ChevronRight;
 
   function handleLogout() {
     showModal({
       title: t("logout_title"), message: t("logout_msg"),
       type:"danger", showCancel:true, confirmText: t("logout_btn"),
-      onConfirm: () => {},
+      onConfirm: () => { logout(); },
     });
   }
 
@@ -73,7 +82,7 @@ export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile 
 
         {/* Main nav */}
         <nav style={{ flex:1, padding:"0 12px" }}>
-          {NAV.map(({ id, labelKey, Icon }) => (
+          {visibleNav.map(({ id, labelKey, Icon }) => (
             <button
               key={id}
               onClick={() => handleSwitchView(id)}
@@ -86,12 +95,14 @@ export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile 
             </button>
           ))}
 
-          {/* Demo hint */}
-          <div style={{ margin:"14px 4px 0", borderRadius:12, padding:12, background:"#0a1620", border:"1px solid #1e2f42", fontSize:12, lineHeight:1.6, color:"#4a6070" }}>
-            {/* Updated Demo Hint Text Color to New Purple */}
-            <span style={{ color:"#9784e2", fontWeight:700 }}>{t("demo_mode")}</span>
-            <br />{t("demo_hint")}
-          </div>
+          {/* Demo hint — only when no real role is present */}
+          {showDemoHint && (
+            <div style={{ margin:"14px 4px 0", borderRadius:12, padding:12, background:"#0a1620", border:"1px solid #1e2f42", fontSize:12, lineHeight:1.6, color:"#4a6070" }}>
+              {/* Updated Demo Hint Text Color to New Purple */}
+              <span style={{ color:"#9784e2", fontWeight:700 }}>{t("demo_mode")}</span>
+              <br />{t("demo_hint")}
+            </div>
+          )}
         </nav>
 
         {/* Bottom */}

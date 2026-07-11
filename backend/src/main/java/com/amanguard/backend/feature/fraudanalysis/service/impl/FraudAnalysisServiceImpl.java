@@ -1,5 +1,9 @@
 package com.amanguard.backend.feature.fraudanalysis.service.impl;
 
+import com.amanguard.backend.common.security.CurrentUserService;
+import com.amanguard.backend.feature.fraudanalysis.client.AiEngineClient;
+import com.amanguard.backend.feature.fraudanalysis.client.AiEngineException;
+import com.amanguard.backend.feature.fraudanalysis.client.AiEngineResult;
 import com.amanguard.backend.feature.fraudanalysis.dto.response.AnalyzeFraudResponse;
 import com.amanguard.backend.feature.fraudanalysis.dto.response.InterruptionQuestionResponse;
 import com.amanguard.backend.feature.fraudanalysis.dto.response.RiskFindingResponse;
@@ -7,6 +11,9 @@ import com.amanguard.backend.feature.fraudanalysis.model.FraudCase;
 import com.amanguard.backend.feature.fraudanalysis.model.RiskLevel;
 import com.amanguard.backend.feature.fraudanalysis.repository.FraudCaseRepository;
 import com.amanguard.backend.feature.fraudanalysis.service.FraudAnalysisService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,22 +28,64 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
     private static final int MAX_RISK_SCORE = 100;
 
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(FraudAnalysisServiceImpl.class);
+
     private static final Pattern URL_PATTERN = Pattern.compile(
             "(https?://|www\\.|bit\\.ly|tinyurl\\.com|t\\.co)",
             Pattern.CASE_INSENSITIVE
     );
 
     private final FraudCaseRepository fraudCaseRepository;
+    private final AiEngineClient aiEngineClient;
+    private final CurrentUserService currentUserService;
+
+    // Master switch for the AI-with-fallback path (amanguard.ai.fallback-enabled).
+    @Value("${amanguard.ai.fallback-enabled:true}")
+    private boolean aiEnabled;
 
     public FraudAnalysisServiceImpl(
-            FraudCaseRepository fraudCaseRepository
+            FraudCaseRepository fraudCaseRepository,
+            AiEngineClient aiEngineClient,
+            CurrentUserService currentUserService
     ) {
         this.fraudCaseRepository = fraudCaseRepository;
+        this.aiEngineClient = aiEngineClient;
+        this.currentUserService = currentUserService;
     }
 
     @Override
     @Transactional
     public AnalyzeFraudResponse analyze(String originalText) {
+        // AI-first with graceful fallback: the AI engine's score/findings win
+        // when available; any failure falls back to the deterministic rules so
+        // the endpoint never crashes.
+        if (aiEnabled) {
+            try {
+                AnalyzeFraudResponse aiResponse = analyzeWithAi(
+                        originalText,
+                        aiEngineClient.analyze(originalText)
+                );
+                audit(originalText, "ai");
+                return aiResponse;
+            } catch (AiEngineException exception) {
+                // Metadata only — never the message content or the API key.
+                LOGGER.warn(
+                        "AI engine unavailable; falling back to rules "
+                                + "(userId={}, textLength={}): {}",
+                        currentUserService.currentNationalId(),
+                        originalText.length(),
+                        exception.getMessage()
+                );
+            }
+        }
+
+        AnalyzeFraudResponse rulesResponse = analyzeWithRules(originalText);
+        audit(originalText, "rules");
+        return rulesResponse;
+    }
+
+    private AnalyzeFraudResponse analyzeWithRules(String originalText) {
         String normalizedText = normalize(originalText);
 
         int riskScore = 0;
@@ -245,7 +294,91 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
                 recommendationAr,
                 createRecommendationEn(riskLevel),
                 createQuestions(riskLevel),
-                savedCase.getId()
+                savedCase.getId(),
+                "rules"
+        );
+    }
+
+    private AnalyzeFraudResponse analyzeWithAi(
+            String originalText,
+            AiEngineResult ai
+    ) {
+        RiskLevel riskLevel = parseLevel(ai.riskLevel(), ai.riskScore());
+        int riskScore = Math.max(0, Math.min(ai.riskScore(), MAX_RISK_SCORE));
+
+        List<RiskFindingResponse> findings = buildAiFindings(ai);
+        if (findings.isEmpty()) {
+            findings.add(new RiskFindingResponse(
+                    "تحليل الذكاء الاصطناعي",
+                    "AI Analysis",
+                    "قام محرك الذكاء الاصطناعي بتحليل النص.",
+                    "The AI engine analysed the text."
+            ));
+        }
+
+        String recommendationAr = createRecommendationAr(riskLevel);
+
+        FraudCase fraudCase = new FraudCase(
+                originalText,
+                riskScore,
+                riskLevel,
+                recommendationAr
+        );
+
+        FraudCase savedCase = fraudCaseRepository.save(fraudCase);
+
+        return new AnalyzeFraudResponse(
+                riskScore,
+                riskLevel.name().toLowerCase(Locale.ROOT),
+                createRiskLabelAr(riskLevel),
+                createRiskLabelEn(riskLevel),
+                findings,
+                recommendationAr,
+                createRecommendationEn(riskLevel),
+                createQuestions(riskLevel),
+                savedCase.getId(),
+                "ai"
+        );
+    }
+
+    // The engine emits Arabic-only reasons/red_flags, so the English fields
+    // mirror the Arabic until the engine returns bilingual output.
+    private List<RiskFindingResponse> buildAiFindings(AiEngineResult ai) {
+        List<String> redFlags = ai.redFlags() == null ? List.of() : ai.redFlags();
+        List<String> reasons = ai.reasons() == null ? List.of() : ai.reasons();
+
+        List<RiskFindingResponse> findings = new ArrayList<>();
+        int count = Math.max(redFlags.size(), reasons.size());
+
+        for (int i = 0; i < count; i++) {
+            String title = i < redFlags.size() ? redFlags.get(i) : reasons.get(i);
+            String detail = i < reasons.size() ? reasons.get(i) : title;
+
+            findings.add(new RiskFindingResponse(title, title, detail, detail));
+        }
+
+        return findings;
+    }
+
+    private RiskLevel parseLevel(String riskLevel, int riskScore) {
+        if (riskLevel != null) {
+            try {
+                return RiskLevel.valueOf(riskLevel.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                // Unknown label — derive from the numeric score instead.
+            }
+        }
+
+        return RiskLevel.fromScore(riskScore);
+    }
+
+    // Every analysis is audited with metadata only — never the message text.
+    private void audit(String originalText, String source) {
+        LOGGER.info(
+                "analysis-audit userId={} textLength={} source={}",
+                currentUserService.currentNationalId(),
+                originalText.length(),
+                source
         );
     }
 

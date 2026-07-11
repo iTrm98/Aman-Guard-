@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, ShieldAlert, ArrowUpCircle, Trash2, Phone, Pencil, Save, Loader2 } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 import { freezeCaseByStaff, updateCase } from "../../api/fraudService";
 import { apiErrorMessage } from "../../api/client";
 import { useRelativeTime } from "../../hooks/useRelativeTime";

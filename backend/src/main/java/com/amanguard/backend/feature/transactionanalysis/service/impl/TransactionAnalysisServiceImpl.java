@@ -16,10 +16,14 @@ import com.amanguard.backend.feature.transactionanalysis.dto.response.Transactio
 import com.amanguard.backend.feature.transactionanalysis.model.TransactionAnalysis;
 import com.amanguard.backend.feature.transactionanalysis.repository.TransactionAnalysisRepository;
 import com.amanguard.backend.feature.transactionanalysis.service.TransactionAnalysisService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,27 +41,13 @@ public class TransactionAnalysisServiceImpl
             "محاولة شراء غير مصرحة";
 
     // TODO: replace with real AI engine — URL keyword heuristics common in
-    // phishing / fraudulent merchant sites.
-    private static final List<String> SUSPICIOUS_URL_KEYWORDS = List.of(
-            "fake", "phish", "scam", "secure-login",
-            "verify-account", "free-gift", "prize"
-    );
+    // phishing / fraudulent merchant sites. Loaded from fraud_keywords.json.
+    private final List<String> suspiciousUrlKeywords;
 
-    // TODO: replace with real AI engine — demo whitelist standing in for an
+    // TODO: replace with real AI engine — whitelist standing in for an
     // approved-merchants database (English + normalized Arabic aliases).
-    private static final Set<String> KNOWN_MERCHANTS = Set.of(
-            "amazon", "امازون",
-            "noon", "نون",
-            "jarir", "جرير",
-            "extra", "اكسترا",
-            "stc",
-            "zain", "زين",
-            "mobily", "موبايلي",
-            "apple", "ابل",
-            "google", "جوجل",
-            "microsoft", "مايكروسوفت",
-            "samsung", "سامسونج"
-    );
+    // Loaded from merchants.json.
+    private final Set<String> knownMerchants;
 
     // Hard purchase limit — backend configuration only
     // (amanguard.fraud.max-purchase-amount). Never exposed as a customer
@@ -74,7 +64,8 @@ public class TransactionAnalysisServiceImpl
             TransactionAnalysisRepository transactionAnalysisRepository,
             FraudCaseRepository fraudCaseRepository,
             NotificationRepository notificationRepository,
-            EmergencyFreezeService emergencyFreezeService
+            EmergencyFreezeService emergencyFreezeService,
+            ObjectMapper objectMapper
     ) {
         this.transactionAnalysisRepository =
                 transactionAnalysisRepository;
@@ -87,6 +78,32 @@ public class TransactionAnalysisServiceImpl
 
         this.emergencyFreezeService =
                 emergencyFreezeService;
+
+        this.suspiciousUrlKeywords = List.copyOf(
+                readStringList(objectMapper, "fraud_keywords.json")
+        );
+
+        this.knownMerchants = Set.copyOf(
+                readStringList(objectMapper, "merchants.json")
+        );
+    }
+
+    private static List<String> readStringList(
+            ObjectMapper objectMapper,
+            String resourceName
+    ) {
+        try {
+            return objectMapper.readValue(
+                    new ClassPathResource(resourceName).getInputStream(),
+                    new TypeReference<List<String>>() {
+                    }
+            );
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Failed to load " + resourceName + " from classpath",
+                    e
+            );
+        }
     }
 
     // Outcome of the mock rule evaluation, before persistence.
@@ -456,7 +473,7 @@ public class TransactionAnalysisServiceImpl
                 .toLowerCase(Locale.ROOT)
                 .trim();
 
-        return SUSPICIOUS_URL_KEYWORDS.stream()
+        return suspiciousUrlKeywords.stream()
                 .anyMatch(url::contains);
     }
 
@@ -464,7 +481,7 @@ public class TransactionAnalysisServiceImpl
     private boolean isKnownMerchant(String merchantName) {
         String normalized = normalize(merchantName);
 
-        return KNOWN_MERCHANTS.stream()
+        return knownMerchants.stream()
                 .anyMatch(normalized::contains);
     }
 

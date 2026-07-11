@@ -1,6 +1,6 @@
 import { ShieldCheck, Lock, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 import { getAccountInfo } from "../../api/fraudService";
 import { apiErrorMessage } from "../../api/client";
 
@@ -80,14 +80,14 @@ export default function AccountCard() {
               <p style={{ fontSize:11, color:"#8da0b3", marginBottom:4 }}>{t("balance_available")}</p>
               <p style={{ fontSize:26, fontWeight:900, letterSpacing:"-0.02em" }}>
                 {showBalance
-                  ? `${formatNumber(account.balance, lang, { minimumFractionDigits:2, maximumFractionDigits:2 })} ${lang === "ar" ? "ر.س" : account.currency}`
-                  : (lang === "ar" ? "••••••• ر.س" : "••••••• SAR")}
+                  ? `${formatNumber(account.balance, lang, { minimumFractionDigits:2, maximumFractionDigits:2 })} ${lang === "ar" ? t("sar") : account.currency}`
+                  : `••••••• ${t("sar")}`}
               </p>
             </div>
             <button
               onClick={() => setShowBalance(v => !v)}
               style={{ marginBottom:4, padding:7, borderRadius:8, background:"rgba(255,255,255,0.08)", border:"none", cursor:"pointer", color:"#8da0b3" }}
-              title={showBalance ? (lang === "ar" ? "إخفاء الرصيد" : "Hide balance") : (lang === "ar" ? "إظهار الرصيد" : "Show balance")}
+              title={showBalance ? t("hide_balance") : t("show_balance")}
             >
               {showBalance ? <EyeOff style={{ width:16, height:16 }} /> : <Eye style={{ width:16, height:16 }} />}
             </button>

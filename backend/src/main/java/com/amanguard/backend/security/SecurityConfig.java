@@ -1,5 +1,6 @@
 package com.amanguard.backend.security;
 
+import com.amanguard.backend.common.ratelimit.RateLimitingFilter;
 import com.amanguard.backend.common.response.ApiErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,13 +27,16 @@ import java.util.Map;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitingFilter rateLimitingFilter;
     private final ObjectMapper objectMapper;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            RateLimitingFilter rateLimitingFilter,
             ObjectMapper objectMapper
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitingFilter = rateLimitingFilter;
         this.objectMapper = objectMapper;
     }
 
@@ -95,6 +99,10 @@ public class SecurityConfig {
                                 "/h2-console/**"
                         ).permitAll()
 
+                        .requestMatchers(
+                                "/api/health"
+                        ).permitAll()
+
                         // Customer endpoints
                         .requestMatchers(
                                 "/api/account/**"
@@ -108,10 +116,13 @@ public class SecurityConfig {
                                 "/api/verifications/**"
                         ).hasRole("CUSTOMER")
 
+                        // Freeze request: customers file their own; officers file
+                        // on a customer's behalf ("Freeze & Call"). Approval stays
+                        // officer-only (PATCH matchers below).
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/freeze"
-                        ).hasRole("CUSTOMER")
+                        ).authenticated()
 
                         // Bank officer endpoints
                         .requestMatchers(
@@ -169,36 +180,25 @@ public class SecurityConfig {
                                 "/api/freeze/*/unfreeze"
                         ).hasRole("BANK_OFFICER")
 
-                        // Shared endpoints
+                        // Shared endpoints — any authenticated role. Notifications
+                        // are additionally filtered per-user inside the service.
                         .requestMatchers(
                                 "/api/notifications/**"
-                        ).hasAnyRole(
-                                "CUSTOMER",
-                                "BANK_OFFICER"
-                        )
+                        ).authenticated()
 
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/freeze/**"
-                        ).hasAnyRole(
-                                "CUSTOMER",
-                                "BANK_OFFICER"
-                        )
+                        ).authenticated()
 
                         .requestMatchers(
                                 "/api/call-status"
-                        ).hasAnyRole(
-                                "CUSTOMER",
-                                "BANK_OFFICER"
-                        )
+                        ).authenticated()
 
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/analyze"
-                        ).hasAnyRole(
-                                "CUSTOMER",
-                                "BANK_OFFICER"
-                        )
+                        ).authenticated()
 
                         .anyRequest()
                         .authenticated()
@@ -206,6 +206,12 @@ public class SecurityConfig {
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
+                )
+                // Runs after JWT auth so the principal is available for per-user
+                // keying (falls back to client IP when unauthenticated).
+                .addFilterAfter(
+                        rateLimitingFilter,
+                        JwtAuthenticationFilter.class
                 )
                 .build();
     }

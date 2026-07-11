@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, XCircle, Snowflake, CheckSquare, Square, ChevronDown, ChevronUp } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 
 function RiskGauge({ score }) {
   const r = 44, circumference = Math.PI * r;
@@ -43,6 +43,16 @@ export default function RiskReport({ result, onFreezeRequest }) {
           <div>
             <p style={{ fontWeight:900, fontSize:15, color:riskColor }}>{t("report_title")}</p>
             <p style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{t("report_issued")}</p>
+            {result.analysisSource && (
+              <span style={{
+                display:"inline-block", marginTop:6, padding:"2px 8px", borderRadius:6, fontSize:10, fontWeight:700,
+                color:      result.analysisSource === "ai" ? "var(--gold)" : "var(--text-muted)",
+                background:  result.analysisSource === "ai" ? "rgba(196,154,90,0.12)" : "rgba(0,0,0,0.06)",
+                border:     `1px solid ${result.analysisSource === "ai" ? "rgba(196,154,90,0.3)" : "var(--border)"}`,
+              }}>
+                {result.analysisSource === "ai" ? t("analysis_by_ai") : t("analysis_by_rules")}
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>

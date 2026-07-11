@@ -2,7 +2,7 @@ import { useState } from "react";
 import { PhoneCall, RefreshCw, ShieldX, ShieldCheck, Loader2 } from "lucide-react";
 import { checkCallStatus } from "../../api/fraudService";
 import { apiErrorMessage } from "../../api/client";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 
 export default function CallVerification() {
   const { t } = useApp();

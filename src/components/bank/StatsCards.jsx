@@ -1,5 +1,5 @@
 import { ShieldAlert, Eye, Lock, TrendingUp } from "lucide-react";
-import { useApp } from "../../context/AppContext";
+import { useApp } from "../../context/useApp";
 
 export default function StatsCards({ stats }) {
   const { t } = useApp();
