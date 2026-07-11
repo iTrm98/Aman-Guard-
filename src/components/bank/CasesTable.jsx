@@ -16,7 +16,7 @@ const STATUS = {
   frozen:               { cls:"status-frozen",  tKey:"status_frozen"  },
 };
 
-function CaseRow({ c, isNew, index, t, lang, onSelectCase }) {
+function CaseRow({ c, isNew, index, t, lang, isMobile, onSelectCase }) {
   const timeAgo = useRelativeTime(c.createdAt);
   const risk   = RISK[c.riskLevel]      ?? RISK.medium;
   const status = STATUS[c.accountStatus] ?? STATUS.active;
@@ -36,18 +36,22 @@ function CaseRow({ c, isNew, index, t, lang, onSelectCase }) {
       <td style={{ padding:"13px 18px" }}>
         <p style={{ fontWeight:700, color:"var(--text-primary)" }}>{c.customerName}</p>
       </td>
-      <td style={{ padding:"13px 18px" }}>
-        <p style={{ color:"var(--text-secondary)", maxWidth:200 }}>{displayFraudPattern(c.fraudPattern, lang)}</p>
-      </td>
+      {!isMobile && (
+        <td style={{ padding:"13px 18px" }}>
+          <p style={{ color:"var(--text-secondary)", maxWidth:200 }}>{displayFraudPattern(c.fraudPattern, lang)}</p>
+        </td>
+      )}
       <td style={{ padding:"13px 18px" }}>
         <span className={`risk-badge ${risk.cls}`}>
           <RiskIcon style={{ width:11, height:11 }} />
           {c.riskScore} — {t(risk.labelKey)}
         </span>
       </td>
-      <td style={{ padding:"13px 18px" }}>
-        <span className={`status-badge ${status.cls}`}>{t(status.tKey)}</span>
-      </td>
+      {!isMobile && (
+        <td style={{ padding:"13px 18px" }}>
+          <span className={`status-badge ${status.cls}`}>{t(status.tKey)}</span>
+        </td>
+      )}
       <td style={{ padding:"13px 18px", textAlign:"center" }}>
         {isNew ? (
           <button onClick={() => onSelectCase?.(c)} className="btn-primary" style={{ padding:"6px 14px", fontSize:12 }}>
@@ -63,7 +67,7 @@ function CaseRow({ c, isNew, index, t, lang, onSelectCase }) {
   );
 }
 
-export default function CasesTable({ cases, onRefresh, highlightId, onExport, onSelectCase }) {
+export default function CasesTable({ cases, onRefresh, highlightId, onExport, onSelectCase, isMobile }) {
   const { t, lang } = useApp();
   const [query,  setQuery]   = useState("");
   const [sortBy, setSortBy]  = useState("riskScore");
@@ -81,9 +85,9 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
   const COLS = [
     { label: t("col_report"), col: null        },
     { label: t("col_client"), col: null        },
-    { label: t("col_pattern"),col: null        },
+    ...(isMobile ? [] : [{ label: t("col_pattern"), col: null }]),
     { label: t("col_risk"),   col: "riskScore" },
-    { label: t("col_account"),col: null        },
+    ...(isMobile ? [] : [{ label: t("col_account"), col: null }]),
     { label: t("col_action"), col: null        },
   ];
 
@@ -116,7 +120,7 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
 
       {/* Table */}
       <div style={{ overflowX:"auto" }}>
-        <table style={{ width:"100%", minWidth:720, textAlign:"right", fontSize:13, borderCollapse:"collapse" }}>
+        <table style={{ width:"100%", minWidth: isMobile ? 0 : 720, textAlign:"right", fontSize:13, borderCollapse:"collapse" }}>
           <thead>
             <tr style={{ borderBottom:"1px solid var(--border-subtle)" }}>
               {COLS.map(({ label, col }) => (
@@ -140,11 +144,12 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
                 isNew={c.id === highlightId}
                 t={t}
                 lang={lang}
+                isMobile={isMobile}
                 onSelectCase={onSelectCase}
               />
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={6} style={{ padding:40, textAlign:"center", color:"var(--text-muted)", fontSize:14 }}>{t("no_cases")}</td></tr>
+              <tr><td colSpan={isMobile ? 4 : 6} style={{ padding:40, textAlign:"center", color:"var(--text-muted)", fontSize:14 }}>{t("no_cases")}</td></tr>
             )}
           </tbody>
         </table>

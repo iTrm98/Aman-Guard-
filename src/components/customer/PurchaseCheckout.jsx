@@ -17,7 +17,7 @@ const TX_TYPES = [
 //   allowed (low)        → TransactionResult green state
 //   suspended (medium)   → PurchaseInterceptionOverlay (approve / stop)
 //   blocked (high/crit)  → TransactionResult red final state, no override
-export default function PurchaseCheckout({ onPurchaseFreeze, onPurchaseBlocked }) {
+export default function PurchaseCheckout({ isMobile, onPurchaseFreeze, onPurchaseBlocked }) {
   const { t, showModal, currentUser } = useApp();
   const [merchantName, setMerchantName] = useState("");
   const [amount,       setAmount]       = useState("");
@@ -121,7 +121,7 @@ export default function PurchaseCheckout({ onPurchaseFreeze, onPurchaseBlocked }
       </div>
 
       {loading && (
-        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:10, background:"rgba(196,154,90,0.07)", border:"1px solid rgba(196,154,90,0.15)", fontSize:13, color:"#8a6030" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:10, background:"rgba(151,132,226,0.07)", border:"1px solid rgba(151,132,226,0.15)", fontSize:13, color:"#605C94" }}>
           <Loader2 style={{ width:16, height:16, flexShrink:0, color:"var(--gold)" }} className="animate-spin" />
           {t("ai_verifying")}
         </div>
@@ -142,6 +142,7 @@ export default function PurchaseCheckout({ onPurchaseFreeze, onPurchaseBlocked }
 
       {intercepted && result && (
         <PurchaseInterceptionOverlay
+          isMobile={isMobile}
           transaction={{ ...result, merchantName: merchantName.trim(), amount: Number(amount) }}
           onConfirmed={handleConfirmed}
           onStopped={handleStopped}

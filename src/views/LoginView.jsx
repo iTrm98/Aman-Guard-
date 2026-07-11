@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ShieldCheck, Sun, Moon, ChevronDown, User, Building2 } from "lucide-react";
+import { ShieldCheck, Sun, Moon, ChevronDown, User, Building2, Eye, EyeOff } from "lucide-react";
 import { useApp } from "../context/useApp";
 import { login } from "../api/fraudService";
 import { apiErrorMessage } from "../api/client";
@@ -7,7 +7,7 @@ import { apiErrorMessage } from "../api/client";
 // Full-screen login. Exchanges national id + password for a JWT session via
 // the backend feature/auth endpoints, then hands the response to
 // AppContext.completeLogin, which stores the token and swaps in the app shell.
-export default function LoginView() {
+export default function LoginView({ isMobile }) {
   const { t, lang, theme, toggleTheme, toggleLang, completeLogin } = useApp();
 
   const [nationalId, setNationalId] = useState("");
@@ -15,6 +15,7 @@ export default function LoginView() {
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState(null);
   const [showDemo,   setShowDemo]   = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -36,7 +37,7 @@ export default function LoginView() {
   ];
 
   return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:20, background:"var(--bg-app)", transition:"background 0.25s" }}>
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding: isMobile ? "20px 16px" : 20, background:"var(--bg-app)", transition:"background 0.25s" }}>
 
       {/* Theme / language toggles */}
       <div style={{ position:"fixed", top:16, insetInlineEnd:16, display:"flex", gap:8 }}>
@@ -48,14 +49,14 @@ export default function LoginView() {
         </button>
       </div>
 
-      <div className="card animate-fade-in" style={{ width:"100%", maxWidth:420, padding:"36px 32px" }}>
+      <div className="card animate-fade-in" style={{ width:"100%", maxWidth:420, padding: isMobile ? "28px 20px" : "36px 32px" }}>
 
         {/* Brand */}
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:24 }}>
-          <div style={{ width:52, height:52, borderRadius:14, background:"#101e2e", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12 }}>
-            <ShieldCheck style={{ width:28, height:28, color:"#fff" }} />
+          <div style={{ width: isMobile ? 46 : 52, height: isMobile ? 46 : 52, borderRadius:14, background:"#101e2e", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:12 }}>
+            <ShieldCheck style={{ width: isMobile ? 24 : 28, height: isMobile ? 24 : 28, color:"#fff" }} />
           </div>
-          <p style={{ fontWeight:900, fontSize:22, color:"var(--text-primary)", letterSpacing:"0.02em" }}>
+          <p style={{ fontWeight:900, fontSize: isMobile ? 20 : 22, color:"var(--text-primary)", letterSpacing:"0.02em" }}>
             Aman<span style={{ color:"var(--gold)" }}>Guard</span>
           </p>
           <p style={{ fontSize:12, color:"var(--text-muted)", marginTop:4 }}>{t("brand_sub")}</p>
@@ -87,14 +88,27 @@ export default function LoginView() {
           <label style={{ display:"block", fontSize:12, fontWeight:700, color:"var(--text-muted)", margin:"14px 0 6px" }}>
             {t("password")}
           </label>
-          <input
-            className="input-field"
-            type="password"
-            style={{ direction:"ltr", textAlign:"start" }}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
+          <div style={{ position:"relative" }}>
+            <input
+              className="input-field"
+              type={showPassword ? "text" : "password"}
+              style={{ direction:"ltr", textAlign:"start", ...(lang === "ar" ? { paddingRight:40 } : { paddingLeft:40 }) }}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? t("hide_password") : t("show_password")}
+              title={showPassword ? t("hide_password") : t("show_password")}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+              style={{ position:"absolute", insetInlineStart:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:2, display:"flex", color:"var(--text-muted)" }}
+            >
+              {showPassword ? <EyeOff style={{ width:16, height:16 }} /> : <Eye style={{ width:16, height:16 }} />}
+            </button>
+          </div>
 
           <button type="submit" className="btn-primary" disabled={loading || !nationalId.trim() || !password}
             style={{ width:"100%", justifyContent:"center", marginTop:18, padding:"11px 0", opacity: loading || !nationalId.trim() || !password ? 0.6 : 1 }}>

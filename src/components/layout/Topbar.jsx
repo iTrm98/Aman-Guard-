@@ -1,28 +1,28 @@
 import { Search, Bell, Sun, Moon, Menu } from "lucide-react";
 import { useApp } from "../../context/useApp";
 
-export default function Topbar({ view, onOpenMobileNav }) {
+export default function Topbar({ view, isMobile, onMenuToggle }) {
   const { t, theme, toggleTheme, lang, toggleLang, unreadCount, openPanel } = useApp();
 
   const titles = {
-    customer: { main: t("topbar_customer_title"), sub: t("topbar_customer_sub") },
-    bank:     { main: t("topbar_bank_title"),     sub: t("topbar_bank_sub")     },
+    customer: { main: t("topbar_customer_title"), sub: t("topbar_customer_sub"), short: t("topbar_customer_short") },
+    bank:     { main: t("topbar_bank_title"),     sub: t("topbar_bank_sub"),     short: t("topbar_bank_short")     },
   };
-  const { main, sub } = titles[view] ?? titles.customer;
+  const { main, sub, short } = titles[view] ?? titles.customer;
 
   return (
     <header className="px-3 sm:px-4 md:px-6" style={{ height:64, background:"var(--bg-surface)", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexShrink:0, transition:"background 0.25s" }}>
       <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
         <button
-          onClick={onOpenMobileNav}
-          className="md:hidden"
+          onClick={onMenuToggle}
           aria-label={t("open_menu")}
+          title={t("toggle_sidebar")}
           style={{ width:36, height:36, borderRadius:10, background:"var(--bg-subtle)", border:"1.5px solid var(--border)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--text-secondary)", flexShrink:0 }}
         >
           <Menu style={{ width:16, height:16 }} />
         </button>
         <div style={{ minWidth:0 }}>
-          <h1 style={{ fontWeight:900, fontSize:17, color:"var(--text-primary)", lineHeight:1.2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{main}</h1>
+          <h1 style={{ fontWeight:900, fontSize:17, color:"var(--text-primary)", lineHeight:1.2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{isMobile ? short : main}</h1>
           <p className="hidden sm:block" style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{sub}</p>
         </div>
       </div>
@@ -55,7 +55,7 @@ export default function Topbar({ view, onOpenMobileNav }) {
         >
           {theme === "light"
             ? <Moon style={{ width:16, height:16 }} />
-            : <Sun  style={{ width:16, height:16, color:"#c49a5a" }} />
+            : <Sun  style={{ width:16, height:16, color:"#9784e2" }} />
           }
         </button>
 

@@ -8,7 +8,7 @@ import { useApp } from "../../context/useApp";
 // Shown ONLY for medium-risk (suspended) transactions — high/critical are
 // blocked server-side with zero customer override and never reach this UI.
 // zIndex 70 sits above the modal system (60) and panel drawers (50).
-export default function PurchaseInterceptionOverlay({ transaction, onConfirmed, onStopped }) {
+export default function PurchaseInterceptionOverlay({ isMobile, transaction, onConfirmed, onStopped }) {
   const { t, lang } = useApp();
   const [busy,  setBusy]  = useState(null); // "confirm" | "cancel" | null
   const [error, setError] = useState(null);
@@ -57,7 +57,7 @@ export default function PurchaseInterceptionOverlay({ transaction, onConfirmed, 
           }}>
             <Hand style={{ width:30, height:30, color:"var(--red)" }} />
           </div>
-          <p style={{ fontWeight:900, fontSize:19, color:"#fff", marginBottom:6 }}>{t("interception_title")}</p>
+          <p style={{ fontWeight:900, fontSize: isMobile ? 17 : 19, color:"#fff", marginBottom:6 }}>{t("interception_title")}</p>
           <p style={{ fontSize:13, lineHeight:1.6, color:"rgba(255,255,255,0.85)" }}>{t("interception_sub")}</p>
         </div>
 
@@ -95,7 +95,7 @@ export default function PurchaseInterceptionOverlay({ transaction, onConfirmed, 
           {error && <p style={{ fontSize:12, textAlign:"center", color:"var(--red)", marginBottom:12 }}>{error}</p>}
 
           {/* RTL: first button renders on the right (yes), second on the left (no) */}
-          <div style={{ display:"flex", gap:10 }}>
+          <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", gap:10 }}>
             <button onClick={handleYes} disabled={busy !== null} className="btn-ghost" style={{ flex:1 }}>
               {busy === "confirm"
                 ? <Loader2 style={{ width:15, height:15 }} className="animate-spin" />

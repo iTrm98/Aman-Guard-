@@ -1,6 +1,7 @@
 package com.amanguard.backend.feature.fraudanalysis.service.impl;
 
 import com.amanguard.backend.common.security.CurrentUserService;
+import com.amanguard.backend.feature.fraudanalysis.client.AiBilingualResult;
 import com.amanguard.backend.feature.fraudanalysis.client.AiEngineClient;
 import com.amanguard.backend.feature.fraudanalysis.client.AiEngineException;
 import com.amanguard.backend.feature.fraudanalysis.client.AiEngineResult;
@@ -64,7 +65,7 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
             try {
                 AnalyzeFraudResponse aiResponse = analyzeWithAi(
                         originalText,
-                        aiEngineClient.analyze(originalText)
+                        aiEngineClient.analyzeBilingual(originalText)
                 );
                 audit(originalText, "ai");
                 return aiResponse;
@@ -301,10 +302,11 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
 
     private AnalyzeFraudResponse analyzeWithAi(
             String originalText,
-            AiEngineResult ai
+            AiBilingualResult ai
     ) {
-        RiskLevel riskLevel = parseLevel(ai.riskLevel(), ai.riskScore());
-        int riskScore = Math.max(0, Math.min(ai.riskScore(), MAX_RISK_SCORE));
+        AiEngineResult authoritative = ai.arabic();
+        RiskLevel riskLevel = parseLevel(authoritative.riskLevel(), authoritative.riskScore());
+        int riskScore = Math.max(0, Math.min(authoritative.riskScore(), MAX_RISK_SCORE));
 
         List<RiskFindingResponse> findings = buildAiFindings(ai);
         if (findings.isEmpty()) {
@@ -341,23 +343,33 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
         );
     }
 
-    // The engine emits Arabic-only reasons/red_flags, so the English fields
-    // mirror the Arabic until the engine returns bilingual output.
-    private List<RiskFindingResponse> buildAiFindings(AiEngineResult ai) {
-        List<String> redFlags = ai.redFlags() == null ? List.of() : ai.redFlags();
-        List<String> reasons = ai.reasons() == null ? List.of() : ai.reasons();
+    // Arabic is authoritative; the parallel English call supplies the English
+    // finding text when available, falling back per-item to the Arabic text
+    // (so a failed/timed-out/shorter English response never leaves a gap).
+    private List<RiskFindingResponse> buildAiFindings(AiBilingualResult ai) {
+        List<String> redFlagsAr = safeList(ai.arabic().redFlags());
+        List<String> reasonsAr = safeList(ai.arabic().reasons());
+        List<String> redFlagsEn = safeList(ai.english().redFlags());
+        List<String> reasonsEn = safeList(ai.english().reasons());
 
         List<RiskFindingResponse> findings = new ArrayList<>();
-        int count = Math.max(redFlags.size(), reasons.size());
+        int count = Math.max(redFlagsAr.size(), reasonsAr.size());
 
         for (int i = 0; i < count; i++) {
-            String title = i < redFlags.size() ? redFlags.get(i) : reasons.get(i);
-            String detail = i < reasons.size() ? reasons.get(i) : title;
+            String titleAr = i < redFlagsAr.size() ? redFlagsAr.get(i) : reasonsAr.get(i);
+            String detailAr = i < reasonsAr.size() ? reasonsAr.get(i) : titleAr;
 
-            findings.add(new RiskFindingResponse(title, title, detail, detail));
+            String titleEn = i < redFlagsEn.size() ? redFlagsEn.get(i) : titleAr;
+            String detailEn = i < reasonsEn.size() ? reasonsEn.get(i) : detailAr;
+
+            findings.add(new RiskFindingResponse(titleAr, titleEn, detailAr, detailEn));
         }
 
         return findings;
+    }
+
+    private static List<String> safeList(List<String> list) {
+        return list == null ? List.of() : list;
     }
 
     private RiskLevel parseLevel(String riskLevel, int riskScore) {
@@ -468,15 +480,18 @@ public class FraudAnalysisServiceImpl implements FraudAnalysisService {
         return List.of(
                 new InterruptionQuestionResponse(
                         "q1",
-                        "هل طلب منك شخص تنفيذ هذه العملية وهو معك على الهاتف؟"
+                        "هل طلب منك شخص تنفيذ هذه العملية وهو معك على الهاتف؟",
+                        "Did someone ask you to complete this action while on the phone with you?"
                 ),
                 new InterruptionQuestionResponse(
                         "q2",
-                        "هل طلب منك مشاركة رمز OTP أو بيانات البطاقة؟"
+                        "هل طلب منك مشاركة رمز OTP أو بيانات البطاقة؟",
+                        "Were you asked to share an OTP code or card details?"
                 ),
                 new InterruptionQuestionResponse(
                         "q3",
-                        "هل هددك بإيقاف الحساب أو طلب منك التصرف فوراً؟"
+                        "هل هددك بإيقاف الحساب أو طلب منك التصرف فوراً؟",
+                        "Were you threatened with account suspension or pressured to act immediately?"
                 )
         );
     }

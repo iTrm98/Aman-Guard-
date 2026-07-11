@@ -24,7 +24,7 @@ export default function ScamChecker({ onResult, onValidationError }) {
   return (
     <div className="card" style={{ padding:20, display:"flex", flexDirection:"column", gap:16 }}>
       <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
-        <div style={{ width:40, height:40, borderRadius:12, background:"rgba(196,154,90,0.1)", border:"1px solid rgba(196,154,90,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+        <div style={{ width:40, height:40, borderRadius:12, background:"rgba(151,132,226,0.1)", border:"1px solid rgba(151,132,226,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
           <ScanText style={{ width:18, height:18, color:"var(--gold)" }} />
         </div>
         <div>
@@ -50,7 +50,7 @@ export default function ScamChecker({ onResult, onValidationError }) {
       </div>
 
       {loading && (
-        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:10, background:"rgba(196,154,90,0.07)", border:"1px solid rgba(196,154,90,0.15)", fontSize:13, color:"#8a6030" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:10, background:"rgba(151,132,226,0.07)", border:"1px solid rgba(151,132,226,0.15)", fontSize:13, color:"#605C94" }}>
           <Loader2 style={{ width:16, height:16, flexShrink:0, color:"var(--gold)" }} className="animate-spin" />
           {t("analyzing")}
         </div>

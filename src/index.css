@@ -16,8 +16,11 @@
   --text-muted:         #8090a0;
   --text-sidebar:       #8da0b3;
   --text-sidebar-active:#7558b2;
-  --purple:             #9784e2; 
-  --purple-hover:       #605C94; 
+  --purple:             #9784e2;
+  --purple-hover:       #605C94;
+  --gold:               #9784e2;
+  --gold-hover:         #605C94;
+  --gold-light:         #b3a4ed;
   --red:                #c0392b;
   --red-hover:          #a93226;
   --green:              #1a7a4a;
@@ -114,11 +117,11 @@ html, body, #root {
 /* ── Buttons ──────────────────────────────────────────────────────────── */
 .btn-primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  background: var(--purple); color: #fff; border-radius: 10px; padding: 10px 20px;
+  background: var(--gold); color: #fff; border-radius: 10px; padding: 10px 20px;
   font-weight: 700; font-family: var(--font-sans); font-size: 14px;
   border: none; cursor: pointer; transition: background 0.15s, transform 0.1s;
 }
-.btn-primary:hover:not(:disabled)  { background: var(--purple-hover); }
+.btn-primary:hover:not(:disabled)  { background: var(--gold-hover); }
 .btn-primary:active:not(:disabled) { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
 
@@ -187,3 +190,10 @@ html, body, #root {
 }
 [dir="rtl"] .panel-drawer { left:0; }
 [dir="ltr"] .panel-drawer { right:0; }
+
+/* Slide-in drawers (notifications / settings) go full-width on phones. */
+@media (max-width: 767px) {
+  .panel-drawer {
+    width: 100vw !important;
+  }
+}

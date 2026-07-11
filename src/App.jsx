@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar    from "./components/layout/Sidebar";
 import Topbar     from "./components/layout/Topbar";
 import Modal      from "./components/layout/Modal";
@@ -11,7 +11,7 @@ import { freezeAccount } from "./api/fraudService";
 import { UNAUTHORIZED_PURCHASE_PATTERN_AR, BLOCKED_PURCHASE_PATTERN_AR } from "./i18n/fraudPatterns";
 import { useApp } from "./context/useApp";
 
-function AppShell() {
+function AppShell({ isMobile }) {
   const { modal, closeModal, showModal, panel, closePanel, t, lang, currentUser } = useApp();
   // Role owns the view: officers get the SOC dashboard, customers the portal.
   // Deriving it (rather than useState) means there is no runtime switch that
@@ -20,7 +20,9 @@ function AppShell() {
   const view = currentUser.role === "BANK_OFFICER" ? "bank" : "customer";
   const [frozenCase,    setFrozenCase]    = useState(null);
   const [caseToOpen,    setCaseToOpen]    = useState(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Sidebar starts open on desktop, closed on mobile. On desktop the topbar
+  // toggle collapses it to an icon rail; on mobile it slides in as a drawer.
+  const [sidebarOpen,   setSidebarOpen]   = useState(window.innerWidth >= 768);
 
   function handleOpenCaseFromNotification(caseId) {
     // Officer-only flow — they are already on the bank view, so just open the case.
@@ -88,24 +90,35 @@ function AppShell() {
       )}
       {panel?.type === "settings"      && <SettingsPanel      onClose={closePanel} view={view} />}
 
+      {/* Mobile: dim the content behind the slide-in sidebar drawer. */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:30 }}
+        />
+      )}
+
       <Sidebar
         view={view}
         onSwitchView={() => { /* view is role-derived; nav is a single fixed item */ }}
-        mobileOpen={mobileNavOpen}
-        onCloseMobile={() => setMobileNavOpen(false)}
+        isOpen={sidebarOpen}
+        isMobile={isMobile}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, overflow:"hidden" }}>
-        <Topbar view={view} onOpenMobileNav={() => setMobileNavOpen(true)} />
+        <Topbar view={view} isMobile={isMobile} onMenuToggle={() => setSidebarOpen((v) => !v)} />
         <main className="p-4 sm:p-5 md:p-7" style={{ flex:1, overflowY:"auto", background:"var(--bg-app)", transition:"background 0.25s" }}>
           <div style={{ maxWidth:1080, margin:"0 auto" }}>
             {view === "customer"
               ? <CustomerView
+                  isMobile={isMobile}
                   onFreezeRequest={handleFreezeRequest}
                   onPurchaseFreeze={(stopped) => executeFreeze(stopped, UNAUTHORIZED_PURCHASE_PATTERN_AR)}
                   onPurchaseBlocked={handlePurchaseBlocked}
                 />
               : <BankView
+                  isMobile={isMobile}
                   injectedCase={frozenCase}
                   caseToOpen={caseToOpen}
                   onCaseOpened={() => setCaseToOpen(null)}
@@ -120,6 +133,15 @@ function AppShell() {
 
 export default function App() {
   const { isAuthenticated } = useApp();
-  if (!isAuthenticated) return <LoginView />;
-  return <AppShell />;
+  // isMobile is computed once here and threaded down as a prop (never via
+  // context), so both the login screen and the app shell share one source.
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+
+  if (!isAuthenticated) return <LoginView isMobile={isMobile} />;
+  return <AppShell isMobile={isMobile} />;
 }

@@ -18,7 +18,7 @@ function NotificationRow({ n, lang, t, onClick }) {
       onClick={onClick}
       style={{
         padding:"14px 20px", borderBottom:"1px solid var(--border-subtle)",
-        background: n.read ? "transparent" : "rgba(196,154,90,0.05)",
+        background: n.read ? "transparent" : "rgba(151,132,226,0.05)",
         display:"flex", gap:12, alignItems:"flex-start",
         cursor:"pointer",
         borderInlineStart: n.read ? "3px solid transparent" : "3px solid var(--gold)",

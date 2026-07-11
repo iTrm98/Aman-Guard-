@@ -58,17 +58,26 @@ src/
 
   i18n/
     translations.js     Object T with 100+ keys, each { ar: "...", en: "..." }
-    fraudPatterns.js    FRAUD_PATTERNS (officer dropdown options), FRAUD_PATTERN_MAP (ar→en for ALL
-                        backend-emitted pattern strings, incl. the purchase-flow patterns
-                        "عملية شراء مشبوهة" / "شراء إلكتروني محظور" / "محاولة شراء غير مصرحة"),
-                        UNAUTHORIZED_PURCHASE_PATTERN_AR (stop-purchase case pattern + freeze reason),
-                        displayFraudPattern(pattern, lang), riskLevelFromScore(score).
-                        Single source of truth — never duplicate in components.
+    fraudPatterns.js    FRAUD_PATTERNS (officer dropdown options). FRAUD_PATTERN_MAP — single source of
+                        truth mapping every stored fraud_pattern value to a bilingual { ar, en } label.
+                        Covers BOTH shapes the backend stores: UPPER_SNAKE_CASE keys (the V2 seed data —
+                        e.g. "BANK_SUPPORT_OTP" / "OTP_REQUEST_BANK_IMPERSONATION" — plus defensive
+                        generic keys) AND runtime Arabic strings (detectFraudPattern output, the
+                        purchase-flow patterns "عملية شراء مشبوهة" / "شراء إلكتروني محظور" /
+                        "محاولة شراء غير مصرحة", manual officer entry). displayFraudPattern(pattern, lang)
+                        returns entry.ar/entry.en, else Title-cases an unmapped snake_case key — it never
+                        shows a raw key. UNAUTHORIZED_PURCHASE_PATTERN_AR / BLOCKED_PURCHASE_PATTERN_AR,
+                        riskLevelFromScore(score). Never duplicate in components (CasesTable,
+                        CaseDetailPanel, AddCasePanel, and the BankView XLSX export all route through it).
 
   components/
     layout/
       Modal.jsx               Animated modal (danger / success / info types)
-      Sidebar.jsx             Dark navy sidebar with nav, notifications, settings, logout, currentUser chip
+      Sidebar.jsx             Dark navy sidebar with nav, notifications, settings, logout, currentUser chip.
+                              Responsive via isOpen/isMobile/onClose props (from App, inline styles — no
+                              Tailwind md: classes): desktop collapses to a 60px icon rail when isOpen is
+                              false; mobile renders a fixed overlay drawer (80vw/max 280px) that slides
+                              off-screen (RTL-aware translateX) when closed. The mobile backdrop lives in App.jsx
       Topbar.jsx              Header: title, search, language toggle, theme toggle, bell
       NotificationsPanel.jsx  Slide-in drawer — clickable rows (mark read + open linked case), type badges, loading skeleton, mark all read
       SettingsPanel.jsx       Slide-in drawer — theme picker + language picker + app info; when opened
@@ -128,7 +137,10 @@ src/
     Sidebar.test.jsx        Mobile drawer behavior
     SettingsPanel.test.jsx  Theme/language switching
 
-  App.jsx             AppShell: owns view state, freeze flow, renders Sidebar+Topbar+views
+  App.jsx             App() computes isMobile (window.innerWidth < 768, updated on resize) once and threads it
+                      as a prop to LoginView + AppShell → Topbar/Sidebar/CustomerView/BankView (never via
+                      context). AppShell owns sidebarOpen (collapse/drawer toggle, default open on desktop) +
+                      freeze flow, renders Sidebar+Topbar+views + the mobile sidebar backdrop
   main.jsx            Entry point — wraps App in AppProvider
   index.css           All CSS: custom properties, dark mode, utility classes
 
@@ -383,7 +395,7 @@ There is **no mock mode**. Every request carries the JWT Bearer token (see `clie
 //   riskLabelAr, riskLabelEn,
 //   findings: [{ titleAr, titleEn, detailAr, detailEn }],
 //   recommendationAr, recommendationEn,
-//   interruptionQuestions: [{ id, text }],   // Arabic-only (not yet bilingual)
+//   interruptionQuestions: [{ id, textAr, textEn }],   // bilingual; RiskReport picks by lang
 //   caseId: number | null,  // real, persisted FraudCase id — used to freeze
 //   analysisSource: "ai" | "rules"   // which engine produced this result (drives the RiskReport chip)
 // }
@@ -466,9 +478,17 @@ existing 60-second notification/dashboard polling.
 `amanguard.ai.fallback-enabled` is true (default): `POST {amanguard.ai.engine-url}/analyze-message`
 with `{ "message_text": text }`, connect timeout 5s / read timeout `amanguard.ai.timeout-ms` (8s). The
 engine (`AI/phishingGPT.py`, FastAPI + OpenAI, keyless on `localhost:8000`) returns Arabic-only
-`{ is_phishing, risk_score, risk_level, recommended_action, reasons, red_flags }`, which the backend maps
-into the existing `AnalyzeFraudResponse` (English fields mirror the Arabic; labels/questions/`caseId` reuse
-the existing helpers) and tags `analysisSource: "ai"`. On any timeout/error/non-2xx it logs a WARN with
+`{ is_phishing, risk_score, risk_level, recommended_action, reasons, red_flags }`.
+
+**Bilingual findings (parallel calls):** the engine's system prompt forces Arabic output, so `AiEngineClient`
+fires two overlapping calls per analysis — an **authoritative Arabic call** (clean, unmodified text → drives
+score/level/persistence) on the calling thread, and a **best-effort English call** (same text prefixed with
+an English instruction) on a small daemon executor, capped at 10s. `analyzeWithAi` pairs them into `findings[]`
+(titleAr/detailAr from the Arabic call, titleEn/detailEn from the English call, falling back per-item to the
+Arabic text). If the English call fails/times out — or the engine ignores the in-message instruction and still
+answers Arabic — the English fields mirror the Arabic, so display degrades gracefully (and it costs two OpenAI
+calls per analysis). Labels/recommendation/questions/`caseId` derive from `RiskLevel` (already bilingual); the
+result is tagged `analysisSource: "ai"`. On any timeout/error/non-2xx it logs a WARN with
 **metadata only** (userId + text length — never message content) and runs the original deterministic keyword
 scoring (OTP requests, urgency phrasing, suspicious links, remote-access-tool mentions, …), tagged
 `analysisSource: "rules"`. The frontend `/api/analyze` JSON contract is unchanged apart from the added
@@ -574,10 +594,9 @@ What genuinely works end-to-end right now (frontend ↔ backend), what exists on
 - **Registration / account management** — login only; no signup, password change, or user admin. Demo users are seeded by `AuthDataInitializer`.
 - **AI on the purchase path** — `/api/analyze` now calls the Python AI engine (with automatic rule-based fallback), but `/api/transactions/analyze` is still deterministic rule-based scoring (merchant whitelist + URL keyword lists in `backend/src/main/resources/merchants.json` / `fraud_keywords.json`) and is not yet wired to the engine. The engine itself (`AI/phishingGPT.py`) is OpenAI-backed, not a locally trained model, and emits Arabic-only output (English findings mirror the Arabic until the engine is bilingual).
 - **Frontend WebSockets** — backend `/ws` exists; the frontend still relies on polling + prop injection.
-- **Responsive / mobile layout** — Designed for desktop (1080px+); only the sidebar has a mobile drawer.
+- **Responsive / mobile layout** — Core views are now responsive below 768px via an `isMobile` prop (computed once in `App.jsx`, threaded down — new mobile work uses inline `isMobile ? …` conditionals, not Tailwind responsive classes): the sidebar collapses to an icon rail (desktop) / slides in as a drawer (mobile), the cases table drops the pattern + account columns, stats/forms/interception overlay reflow, and slide-in panels go full-width (`.panel-drawer` media query). Desktop (≥768px) is unchanged. Not every micro-layout is tuned for the smallest phones.
 - **Real search in Topbar** — The search input in the header has no handler yet.
 - **Pagination** — Cases table shows the 20 most recent cases with no pagination.
-- **Bilingual interruption questions** — analysis findings/recommendations/labels are bilingual, but the 3 interruption questions are still Arabic-only.
 
 ---
 

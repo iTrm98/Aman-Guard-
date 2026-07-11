@@ -86,7 +86,7 @@ export async function checkCallStatus() {
  *   riskScore, riskLevel, riskLabelAr, riskLabelEn,
  *   findings: [{ titleAr, titleEn, detailAr, detailEn }],
  *   recommendationAr, recommendationEn,
- *   interruptionQuestions: [{ id, text }],
+ *   interruptionQuestions: [{ id, textAr, textEn }],
  *   caseId,
  * }
  */

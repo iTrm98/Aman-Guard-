@@ -7,6 +7,7 @@ import CaseDetailPanel from "../components/bank/CaseDetailPanel";
 import AddCasePanel    from "../components/bank/AddCasePanel";
 import { getActiveCases, getCaseById } from "../api/fraudService";
 import { apiErrorMessage } from "../api/client";
+import { displayFraudPattern } from "../i18n/fraudPatterns";
 import { useApp } from "../context/useApp";
 
 // Arabic-locale timestamp with an explicit Gregorian calendar: plain "ar-SA"
@@ -19,8 +20,8 @@ function formatExportTimestamp(isoString) {
   });
 }
 
-export default function BankView({ injectedCase, caseToOpen, onCaseOpened }) {
-  const { t, showModal, refreshNotifications } = useApp();
+export default function BankView({ isMobile, injectedCase, caseToOpen, onCaseOpened }) {
+  const { t, lang, showModal, refreshNotifications } = useApp();
   const [stats,       setStats]       = useState(null);
   const [cases,       setCases]       = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -69,7 +70,7 @@ export default function BankView({ injectedCase, caseToOpen, onCaseOpened }) {
     const data = cases.map(c => ({
       "رقم البلاغ":     c.id,
       "العميل":         c.customerName,
-      "نمط الاحتيال":   c.fraudPattern,
+      "نمط الاحتيال":   displayFraudPattern(c.fraudPattern, lang),
       "درجة الخطر":     c.riskScore,
       "مستوى الخطر":    c.riskLevel,
       "حالة الحساب":    c.accountStatus,
@@ -147,13 +148,13 @@ export default function BankView({ injectedCase, caseToOpen, onCaseOpened }) {
             <Plus style={{ width:16, height:16 }} />
             {t("add_case_btn")}
           </button>
-          <button onClick={handleExport} className="btn-ghost">
+          <button onClick={handleExport} className="btn-ghost" title={isMobile ? t("export_report") : undefined}>
             <Download style={{ width:16, height:16 }} />
-            {t("export_report")}
+            {!isMobile && t("export_report")}
           </button>
-          <button onClick={load} className="btn-primary" style={{ padding:"9px 18px" }}>
+          <button onClick={load} className="btn-primary" style={{ padding:"9px 18px" }} title={isMobile ? t("refresh") : undefined}>
             <RefreshCw style={{ width:16, height:16 }} className={loading ? "animate-spin" : ""} />
-            {t("refresh")}
+            {!isMobile && t("refresh")}
           </button>
         </div>
       </div>
@@ -172,6 +173,7 @@ export default function BankView({ injectedCase, caseToOpen, onCaseOpened }) {
 
       <StatsCards stats={stats} />
       <CasesTable
+        isMobile={isMobile}
         cases={cases}
         onRefresh={load}
         highlightId={injectedCase?.id}

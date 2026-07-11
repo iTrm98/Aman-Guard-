@@ -31,8 +31,8 @@ export default function RiskReport({ result, onFreezeRequest }) {
 
   const score = result.riskScore;
   const riskColor  = score >= 80 ? "var(--red)" : score >= 50 ? "#d35400" : "var(--gold)";
-  const riskBg     = score >= 80 ? "rgba(192,57,43,0.08)"  : score >= 50 ? "rgba(211,84,0,0.08)"  : "rgba(196,154,90,0.08)";
-  const riskBorder = score >= 80 ? "rgba(192,57,43,0.25)"  : score >= 50 ? "rgba(211,84,0,0.25)"  : "rgba(196,154,90,0.25)";
+  const riskBg     = score >= 80 ? "rgba(192,57,43,0.08)"  : score >= 50 ? "rgba(211,84,0,0.08)"  : "rgba(151,132,226,0.08)";
+  const riskBorder = score >= 80 ? "rgba(192,57,43,0.25)"  : score >= 50 ? "rgba(211,84,0,0.25)"  : "rgba(151,132,226,0.25)";
 
   return (
     <div style={{ borderRadius:16, overflow:"hidden", border:`1.5px solid ${riskBorder}`, background:"var(--bg-surface)" }} className="animate-slide-up">
@@ -47,8 +47,8 @@ export default function RiskReport({ result, onFreezeRequest }) {
               <span style={{
                 display:"inline-block", marginTop:6, padding:"2px 8px", borderRadius:6, fontSize:10, fontWeight:700,
                 color:      result.analysisSource === "ai" ? "var(--gold)" : "var(--text-muted)",
-                background:  result.analysisSource === "ai" ? "rgba(196,154,90,0.12)" : "rgba(0,0,0,0.06)",
-                border:     `1px solid ${result.analysisSource === "ai" ? "rgba(196,154,90,0.3)" : "var(--border)"}`,
+                background:  result.analysisSource === "ai" ? "rgba(151,132,226,0.12)" : "rgba(0,0,0,0.06)",
+                border:     `1px solid ${result.analysisSource === "ai" ? "rgba(151,132,226,0.3)" : "var(--border)"}`,
               }}>
                 {result.analysisSource === "ai" ? t("analysis_by_ai") : t("analysis_by_rules")}
               </span>
@@ -105,7 +105,7 @@ export default function RiskReport({ result, onFreezeRequest }) {
                           : <Square      style={{ width:18, height:18, color:"var(--border)" }} />
                         }
                       </button>
-                      <span style={{ fontSize:13, lineHeight:1.5, color: checked ? "var(--red)" : "var(--text-primary)", fontWeight: checked ? 700 : 400 }}>{q.text}</span>
+                      <span style={{ fontSize:13, lineHeight:1.5, color: checked ? "var(--red)" : "var(--text-primary)", fontWeight: checked ? 700 : 400 }}>{lang === "ar" ? q.textAr : (q.textEn || q.textAr)}</span>
                     </label>
                   );
                 })}

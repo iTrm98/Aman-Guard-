@@ -17,6 +17,13 @@ const T = {
   premium_client:  { ar: "عميل مميز",                    en: "Premium Client" },
   close_menu:      { ar: "إغلاق القائمة",                 en: "Close menu" },
   open_menu:       { ar: "فتح القائمة",                   en: "Open menu" },
+  toggle_sidebar:        { ar: "إخفاء القائمة",           en: "Toggle Sidebar" },
+  collapse_menu:         { ar: "طي القائمة",              en: "Collapse Menu" },
+  expand_menu:           { ar: "توسيع القائمة",           en: "Expand Menu" },
+  topbar_customer_short: { ar: "بوابة العميل",            en: "Client Portal" },
+  topbar_bank_short:     { ar: "لوحة الأمن",              en: "SOC Dashboard" },
+  show_password:         { ar: "إظهار كلمة المرور",       en: "Show password" },
+  hide_password:         { ar: "إخفاء كلمة المرور",       en: "Hide password" },
 
   // ── Topbar ───────────────────────────────────────────────────────────────
   topbar_customer_title: { ar: "بوابة الحماية الآمنة",                             en: "Secure Protection Portal" },

@@ -8,7 +8,7 @@ function formatNumber(value, lang, opts) {
   return new Intl.NumberFormat(lang === "ar" ? "ar-SA" : "en-US", opts).format(value);
 }
 
-export default function AccountCard() {
+export default function AccountCard({ isMobile }) {
   const { t, lang } = useApp();
   const [showBalance, setShowBalance] = useState(false);
   const [account, setAccount] = useState(null);
@@ -41,8 +41,8 @@ export default function AccountCard() {
 
   return (
     <div className="p-4 sm:p-6" style={{ position:"relative", overflow:"hidden", borderRadius:20, color:"#fff", background:"linear-gradient(135deg,#0d1b2a 0%,#162032 55%,#1e2d42 100%)", border:"1px solid #1e2f42", minHeight:180 }}>
-      <div style={{ position:"absolute", top:-48, insetInlineEnd:-48, width:192, height:192, borderRadius:"50%", background:"#c49a5a", opacity:0.08 }} />
-      <div style={{ position:"absolute", bottom:-32, insetInlineStart:96, width:128, height:128, borderRadius:"50%", background:"#c49a5a", opacity:0.04 }} />
+      <div style={{ position:"absolute", top:-48, insetInlineEnd:-48, width:192, height:192, borderRadius:"50%", background:"#9784e2", opacity:0.08 }} />
+      <div style={{ position:"absolute", bottom:-32, insetInlineStart:96, width:128, height:128, borderRadius:"50%", background:"#9784e2", opacity:0.04 }} />
 
       {loading && (
         <div style={{ position:"relative", display:"flex", flexDirection:"column", gap:16 }}>
@@ -67,7 +67,7 @@ export default function AccountCard() {
       )}
 
       {!loading && !error && account && (
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4" style={{ position:"relative" }}>
+      <div style={{ position:"relative", display:"flex", flexDirection: isMobile ? "column" : "row", justifyContent: isMobile ? "flex-start" : "space-between", alignItems: isMobile ? "stretch" : "flex-start", gap:16 }}>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
             <span className="live-dot" />
@@ -96,7 +96,7 @@ export default function AccountCard() {
 
         <div>
           {[
-            { Icon:ShieldCheck, label:t("account_protected"), color:"#c49a5a", bg:"rgba(196,154,90,0.12)", border:"rgba(196,154,90,0.25)" },
+            { Icon:ShieldCheck, label:t("account_protected"), color:"#9784e2", bg:"rgba(151,132,226,0.12)", border:"rgba(151,132,226,0.25)" },
             { Icon:Lock,        label:t("account_active"),    color:"#27ae60", bg:"rgba(26,122,74,0.12)",  border:"rgba(26,122,74,0.25)"  },
           ].map(({ Icon, label, color, bg, border }) => (
             <div key={label} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:10, background:bg, border:`1px solid ${border}`, marginBottom:8 }}>
@@ -109,11 +109,11 @@ export default function AccountCard() {
       )}
 
       {!loading && !error && account && (
-      <div className="flex flex-wrap gap-6 sm:gap-8" style={{ position:"relative", marginTop:20, paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+      <div style={{ position:"relative", marginTop:20, paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.07)", display: isMobile ? "grid" : "flex", gridTemplateColumns: isMobile ? "1fr 1fr" : undefined, flexWrap: isMobile ? undefined : "wrap", gap: isMobile ? 16 : 32 }}>
         {stats.map(({ labelKey, value, noteKey }) => (
           <div key={labelKey}>
             <p style={{ fontSize:11, color:"#4a6070" }}>{t(labelKey)}</p>
-            <p style={{ fontSize:18, fontWeight:900, color:"#c49a5a" }}>{value}</p>
+            <p style={{ fontSize:18, fontWeight:900, color:"#9784e2" }}>{value}</p>
             <p style={{ fontSize:11, color:"#304050" }}>{t(noteKey)}</p>
           </div>
         ))}

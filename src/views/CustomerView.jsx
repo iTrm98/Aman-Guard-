@@ -6,13 +6,13 @@ import RiskReport     from "../components/customer/RiskReport";
 import PurchaseCheckout from "../components/customer/PurchaseCheckout";
 import { useApp }     from "../context/useApp";
 
-export default function CustomerView({ onFreezeRequest, onPurchaseFreeze, onPurchaseBlocked }) {
+export default function CustomerView({ isMobile, onFreezeRequest, onPurchaseFreeze, onPurchaseBlocked }) {
   const { t, showModal } = useApp();
   const [analysisResult, setAnalysisResult] = useState(null);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }} className="animate-fade-in">
-      <AccountCard />
+      <AccountCard isMobile={isMobile} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         <CallVerification />
         <ScamChecker
@@ -21,7 +21,7 @@ export default function CustomerView({ onFreezeRequest, onPurchaseFreeze, onPurc
         />
       </div>
       {analysisResult && <RiskReport result={analysisResult} onFreezeRequest={onFreezeRequest} />}
-      <PurchaseCheckout onPurchaseFreeze={onPurchaseFreeze} onPurchaseBlocked={onPurchaseBlocked} />
+      <PurchaseCheckout isMobile={isMobile} onPurchaseFreeze={onPurchaseFreeze} onPurchaseBlocked={onPurchaseBlocked} />
     </div>
   );
 }

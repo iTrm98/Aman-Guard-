@@ -3,9 +3,10 @@ import { useApp } from "../../context/useApp";
 
 const ROLE_VIEW = { CUSTOMER: "customer", BANK_OFFICER: "bank" };
 
-export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile }) {
+export default function Sidebar({ view, onSwitchView, isOpen, isMobile, onClose }) {
   const { t, lang, unreadCount, openPanel, showModal, currentUser, logout } = useApp();
   const displayName = lang === "en" ? currentUser.nameEn : currentUser.name;
+  const rtl = lang === "ar";
 
   const NAV = [
     { id:"customer", labelKey:"nav_customer", Icon:ShieldCheck },
@@ -19,7 +20,29 @@ export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile 
   const visibleNav   = allowedView ? NAV.filter((n) => n.id === allowedView) : NAV;
   const showDemoHint = !allowedView;
 
+  // Desktop icon-rail: the sidebar stays in flow but collapses to icons only.
+  // Mobile never uses the rail — it's either the full drawer or off-screen.
+  const collapsed = !isMobile && !isOpen;
+
   const ChevronActive = lang === "ar" ? ChevronLeft : ChevronRight;
+
+  // Geometry: fixed slide-in drawer on mobile; in-flow (collapsible) rail on desktop.
+  const asideStyle = isMobile
+    ? {
+        position:"fixed", top:0, bottom:0, insetInlineStart:0, zIndex:40,
+        width:"80vw", maxWidth:280,
+        transform: isOpen ? "translateX(0)" : (rtl ? "translateX(100%)" : "translateX(-100%)"),
+        transition:"transform 0.25s ease",
+      }
+    : {
+        position:"relative",
+        width: isOpen ? 230 : 60,
+        transition:"width 0.25s ease",
+        flexShrink:0,
+      };
+
+  // Collapsed rows center their icon and drop the text label.
+  const rowStyle = collapsed ? { justifyContent:"center", padding:"10px 0" } : undefined;
 
   function handleLogout() {
     showModal({
@@ -31,113 +54,124 @@ export default function Sidebar({ view, onSwitchView, mobileOpen, onCloseMobile 
 
   function handleSwitchView(id) {
     onSwitchView(id);
-    onCloseMobile?.();
+    if (isMobile) onClose?.();   // close the drawer after navigating on mobile
   }
 
   return (
-    <>
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={onCloseMobile} />
-      )}
-      <aside
-        className={
-          "fixed md:static inset-y-0 start-0 z-50 w-[230px] max-w-[85vw] h-full shrink-0 transition-transform duration-300 ease-in-out " +
-          (mobileOpen ? "translate-x-0" : "max-md:-translate-x-full max-md:rtl:translate-x-full")
-        }
-        style={{ background:"#101e2e", borderInlineStart:"1px solid #1e2f42", display:"flex", flexDirection:"column" }}
-      >
-        {/* Logo */}
-        <div style={{ padding:"20px 20px 18px", borderBottom:"1px solid #1e2f42" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            
-            {/* Alinma-style Box: White background, Dark Navy Icon */}
-            <div style={{ width:40, height:40, borderRadius:12, background:"#ffffff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-              <ShieldCheck style={{ width:22, height:22, color:"#101e2e" }} />
-            </div>
-            
-            <div style={{ flex:1 }}>
+    <aside
+      style={{
+        ...asideStyle,
+        height:"100%", overflow:"hidden",
+        background:"#101e2e", borderInlineStart:"1px solid #1e2f42",
+        display:"flex", flexDirection:"column",
+      }}
+    >
+      {/* Logo */}
+      <div style={{ padding: collapsed ? "20px 10px 18px" : "20px 20px 18px", borderBottom:"1px solid #1e2f42" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12, justifyContent: collapsed ? "center" : "flex-start" }}>
+
+          {/* Alinma-style Box: White background, Dark Navy Icon */}
+          <div style={{ width:40, height:40, borderRadius:12, background:"#ffffff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+            <ShieldCheck style={{ width:22, height:22, color:"#101e2e" }} />
+          </div>
+
+          {!collapsed && (
+            <div style={{ flex:1, minWidth:0 }}>
               <p style={{ color:"#fff", fontWeight:900, fontSize:18, lineHeight:1, letterSpacing:"0.02em" }}>
-                {/* Updated Text Color: New Brighter Purple */}
                 Aman<span style={{ color:"#9784e2" }}>Guard</span>
               </p>
               <p style={{ color:"#304050", fontSize:11, marginTop:3 }}>{t("brand_sub")}</p>
             </div>
+          )}
+
+          {/* Mobile drawer close button */}
+          {isMobile && (
             <button
-              onClick={onCloseMobile}
-              className="md:hidden"
+              onClick={onClose}
               aria-label={t("close_menu")}
               style={{ background:"#0a1620", border:"1px solid #1e2f42", borderRadius:8, padding:6, cursor:"pointer", color:"#8da0b3", flexShrink:0 }}
             >
               <X style={{ width:14, height:14 }} />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Nav label */}
+      {/* Nav label */}
+      {!collapsed && (
         <div style={{ padding:"18px 20px 8px" }}>
           <p style={{ fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.1em", color:"#304050" }}>
             {t("nav_label")}
           </p>
         </div>
+      )}
 
-        {/* Main nav */}
-        <nav style={{ flex:1, padding:"0 12px" }}>
-          {visibleNav.map(({ id, labelKey, Icon }) => (
-            <button
-              key={id}
-              onClick={() => handleSwitchView(id)}
-              className={`sidebar-item${view === id ? " active" : ""}`}
-            >
-              <Icon style={{ width:16, height:16, flexShrink:0 }} />
-              <span style={{ flex:1 }}>{t(labelKey)}</span>
-              {/* Updated Chevron Color to New Purple */}
-              {view === id && <ChevronActive style={{ width:12, height:12, color:"#9784e2", flexShrink:0 }} />}
-            </button>
-          ))}
+      {/* Main nav */}
+      <nav style={{ flex:1, padding: collapsed ? "12px 8px" : "0 12px" }}>
+        {visibleNav.map(({ id, labelKey, Icon }) => (
+          <button
+            key={id}
+            onClick={() => handleSwitchView(id)}
+            title={collapsed ? t(labelKey) : undefined}
+            className={`sidebar-item${view === id ? " active" : ""}`}
+            style={rowStyle}
+          >
+            <Icon style={{ width:16, height:16, flexShrink:0 }} />
+            {!collapsed && <span style={{ flex:1 }}>{t(labelKey)}</span>}
+            {!collapsed && view === id && <ChevronActive style={{ width:12, height:12, color:"#9784e2", flexShrink:0 }} />}
+          </button>
+        ))}
 
-          {/* Demo hint — only when no real role is present */}
-          {showDemoHint && (
-            <div style={{ margin:"14px 4px 0", borderRadius:12, padding:12, background:"#0a1620", border:"1px solid #1e2f42", fontSize:12, lineHeight:1.6, color:"#4a6070" }}>
-              {/* Updated Demo Hint Text Color to New Purple */}
-              <span style={{ color:"#9784e2", fontWeight:700 }}>{t("demo_mode")}</span>
-              <br />{t("demo_hint")}
-            </div>
+        {/* Demo hint — only when no real role is present and the sidebar is expanded */}
+        {showDemoHint && !collapsed && (
+          <div style={{ margin:"14px 4px 0", borderRadius:12, padding:12, background:"#0a1620", border:"1px solid #1e2f42", fontSize:12, lineHeight:1.6, color:"#4a6070" }}>
+            <span style={{ color:"#9784e2", fontWeight:700 }}>{t("demo_mode")}</span>
+            <br />{t("demo_hint")}
+          </div>
+        )}
+      </nav>
+
+      {/* Bottom */}
+      <div style={{ padding: collapsed ? "12px 8px 20px" : "12px 12px 20px", borderTop:"1px solid #1e2f42" }}>
+        <button
+          className="sidebar-item"
+          onClick={() => openPanel("notifications")}
+          title={collapsed ? t("notifications") : undefined}
+          style={{ ...rowStyle, position: collapsed ? "relative" : undefined }}
+        >
+          <Bell style={{ width:16, height:16, flexShrink:0 }} />
+          {!collapsed && <span style={{ flex:1 }}>{t("notifications")}</span>}
+          {!collapsed && unreadCount > 0 && (
+            <span style={{ background:"#c0392b", color:"#fff", fontSize:10, fontWeight:700, borderRadius:99, padding:"1px 6px", flexShrink:0 }}>
+              {unreadCount}
+            </span>
           )}
-        </nav>
+          {collapsed && unreadCount > 0 && (
+            <span style={{ position:"absolute", top:6, insetInlineEnd:10, width:8, height:8, borderRadius:"50%", background:"#c0392b" }} />
+          )}
+        </button>
+        <button className="sidebar-item" onClick={() => openPanel("settings")} title={collapsed ? t("settings") : undefined} style={rowStyle}>
+          <Settings style={{ width:16, height:16, flexShrink:0 }} />
+          {!collapsed && <span style={{ flex:1 }}>{t("settings")}</span>}
+        </button>
+        <button className="sidebar-item" onClick={handleLogout} title={collapsed ? t("logout") : undefined} style={{ ...rowStyle, color:"#c0392b" }}>
+          <LogOut style={{ width:16, height:16, flexShrink:0 }} />
+          {!collapsed && <span style={{ flex:1 }}>{t("logout")}</span>}
+        </button>
 
-        {/* Bottom */}
-        <div style={{ padding:"12px 12px 20px", borderTop:"1px solid #1e2f42" }}>
-          <button className="sidebar-item" onClick={() => openPanel("notifications")}>
-            <Bell style={{ width:16, height:16, flexShrink:0 }} />
-            <span style={{ flex:1 }}>{t("notifications")}</span>
-            {unreadCount > 0 && (
-              <span style={{ background:"#c0392b", color:"#fff", fontSize:10, fontWeight:700, borderRadius:99, padding:"1px 6px", flexShrink:0 }}>
-                {unreadCount}
-              </span>
-            )}
-          </button>
-          <button className="sidebar-item" onClick={() => openPanel("settings")}>
-            <Settings style={{ width:16, height:16, flexShrink:0 }} />
-            <span style={{ flex:1 }}>{t("settings")}</span>
-          </button>
-          <button className="sidebar-item" onClick={handleLogout} style={{ color:"#c0392b" }}>
-            <LogOut style={{ width:16, height:16, flexShrink:0 }} />
-            <span style={{ flex:1 }}>{t("logout")}</span>
-          </button>
-
-          {/* User chip */}
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:12, padding:"10px 12px", borderRadius:12, background:"#0a1620" }}>
-            {/* Updated User Chip Background to New Purple */}
-            <div style={{ width:32, height:32, borderRadius:"50%", background:"#9784e2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
-              {displayName.charAt(0)}
-            </div>
+        {/* User chip */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:12, padding: collapsed ? "10px 0" : "10px 12px", borderRadius:12, background:"#0a1620", justifyContent: collapsed ? "center" : "flex-start" }}>
+          <div style={{ width:32, height:32, borderRadius:"50%", background:"#9784e2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
+            {displayName.charAt(0)}
+          </div>
+          {!collapsed && (
             <div style={{ minWidth:0 }}>
-              <p style={{ fontSize:13, fontWeight:700, color:"#c8d8e8", truncate:true, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{displayName}</p>
+              <p style={{ fontSize:13, fontWeight:700, color:"#c8d8e8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{displayName}</p>
               <p style={{ fontSize:11, color:"#4a6070" }}>{t("premium_client")}</p>
             </div>
-          </div>
+          )}
         </div>
-      </aside>
-    </>
+      </div>
+    </aside>
   );
 }

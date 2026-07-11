@@ -18,25 +18,23 @@ afterEach(() => {
 });
 
 describe("Sidebar mobile drawer", () => {
-  it("shows the mobile overlay and closes it via the close button", async () => {
+  it("closes the drawer via the close button on mobile", async () => {
     const user = userEvent.setup();
-    const onCloseMobile = vi.fn();
-    const { container } = renderWithApp(
-      <Sidebar view="customer" onSwitchView={vi.fn()} mobileOpen={true} onCloseMobile={onCloseMobile} />
+    const onClose = vi.fn();
+    renderWithApp(
+      <Sidebar view="customer" onSwitchView={vi.fn()} isOpen={true} isMobile={true} onClose={onClose} />
     );
-
-    expect(container.querySelector(".fixed.inset-0.z-40")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "إغلاق القائمة" }));
-    expect(onCloseMobile).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("does not render the overlay when closed", () => {
-    const { container } = renderWithApp(
-      <Sidebar view="customer" onSwitchView={vi.fn()} mobileOpen={false} onCloseMobile={vi.fn()} />
+  it("does not render the drawer close button on desktop", () => {
+    renderWithApp(
+      <Sidebar view="customer" onSwitchView={vi.fn()} isOpen={true} isMobile={false} onClose={vi.fn()} />
     );
 
-    expect(container.querySelector(".fixed.inset-0.z-40")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "إغلاق القائمة" })).not.toBeInTheDocument();
   });
 });
 
@@ -44,10 +42,10 @@ describe("Sidebar role-based nav", () => {
   it("shows only the customer portal item for a customer", async () => {
     const user = userEvent.setup();
     const onSwitchView = vi.fn();
-    const onCloseMobile = vi.fn();
+    const onClose = vi.fn();
     seedRole("CUSTOMER");
     renderWithApp(
-      <Sidebar view="customer" onSwitchView={onSwitchView} mobileOpen={true} onCloseMobile={onCloseMobile} />
+      <Sidebar view="customer" onSwitchView={onSwitchView} isOpen={true} isMobile={true} onClose={onClose} />
     );
 
     expect(screen.getByText("بوابة العميل الآمنة")).toBeInTheDocument();
@@ -56,16 +54,17 @@ describe("Sidebar role-based nav", () => {
 
     await user.click(screen.getByText("بوابة العميل الآمنة"));
     expect(onSwitchView).toHaveBeenCalledWith("customer");
-    expect(onCloseMobile).toHaveBeenCalledTimes(1);
+    // Navigating on mobile closes the drawer.
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("shows only the bank dashboard item for a bank officer", async () => {
     const user = userEvent.setup();
     const onSwitchView = vi.fn();
-    const onCloseMobile = vi.fn();
+    const onClose = vi.fn();
     seedRole("BANK_OFFICER");
     renderWithApp(
-      <Sidebar view="bank" onSwitchView={onSwitchView} mobileOpen={true} onCloseMobile={onCloseMobile} />
+      <Sidebar view="bank" onSwitchView={onSwitchView} isOpen={true} isMobile={true} onClose={onClose} />
     );
 
     expect(screen.getByText("لوحة عمليات الأمن")).toBeInTheDocument();
@@ -74,6 +73,6 @@ describe("Sidebar role-based nav", () => {
 
     await user.click(screen.getByText("لوحة عمليات الأمن"));
     expect(onSwitchView).toHaveBeenCalledWith("bank");
-    expect(onCloseMobile).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

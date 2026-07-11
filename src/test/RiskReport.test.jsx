@@ -15,7 +15,7 @@ const mockResult = {
   }],
   recommendationAr: "لا تستجب للرسالة.",
   recommendationEn: "Do not respond to the message.",
-  interruptionQuestions: [{ id: "q1", text: "هل طلب منك شخص ما تنفيذ هذه العملية؟" }],
+  interruptionQuestions: [{ id: "q1", textAr: "هل طلب منك شخص ما تنفيذ هذه العملية؟", textEn: "Did someone ask you to perform this action?" }],
   caseId: null,
 };
 
