@@ -92,7 +92,7 @@ for index, case in enumerate(test_cases, 1):
             is_phishing = result.get('is_phishing')
             status = "🔴 احتيال (Phishing)" if is_phishing else "🟢 آمنة (Safe)"
             
-            print(f"--> نتيجة الذكاء الاصطناعي: {status} (نسبة الثقة: {result.get('confidence_score')})")
+            print(f"--> نتيجة الذكاء الاصطناعي: {status} (نسبة الخطورة: {result.get('risk_score')})")
             print(f"--> التبرير الأول: {result.get('reasons')[0] if result.get('reasons') else 'لا يوجد'}")
         else:
             print(f"--> ❌ خطأ من الخادم: الكود {response.status_code}")
@@ -104,7 +104,5 @@ for index, case in enumerate(test_cases, 1):
         print(f"--> ❌ حدث خطأ غير متوقع: {e}")
     
     print("-" * 60)
-    # توقف لمدة ثانيتين لتجنب استهلاك معدل الطلبات المجاني في Gemini API (Rate Limit)
-    time.sleep(2)
 
 print("تم الانتهاء من الاختبار!")
