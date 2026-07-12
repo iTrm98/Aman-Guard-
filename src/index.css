@@ -197,3 +197,20 @@ html, body, #root {
     width: 100vw !important;
   }
 }
+
+/* Customer portal pages: mobile reflow without threading isMobile everywhere.
+   !important is required so these win over the inline desktop grid styles. */
+@media (max-width: 767px) {
+  .customer-page-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+  .customer-page-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+  .page-header-icon {
+    font-size: 22px !important;
+  }
+  .page-header-title {
+    font-size: 18px !important;
+  }
+}

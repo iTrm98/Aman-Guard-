@@ -161,6 +161,12 @@ const T = {
   action_confirm:  { ar: "تأكيد التجميد والتواصل", en: "Confirm Freeze & Contact" },
   action_review:   { ar: "مراجعة الحالة",           en: "Review Case" },
 
+  // ── Global search (Topbar) ──────────────────────────────────────────────
+  search_placeholder:   { ar: "بحث في الحالات...",                       en: "Search cases..." },
+  search_results_for:   { ar: "نتائج البحث عن",                          en: "Search results for" },
+  search_customer_hint: { ar: "للبحث في الحالات يرجى التواصل مع البنك", en: "To search cases please contact your bank" },
+  no_search_results:    { ar: "لا توجد نتائج للبحث",                     en: "No search results found" },
+
   // ── Risk/Status labels ───────────────────────────────────────────────────
   risk_critical: { ar: "حرج",    en: "Critical" },
   risk_high:     { ar: "عالٍ",   en: "High" },
@@ -265,6 +271,39 @@ const T = {
   demo_credentials:   { ar: "بيانات تجريبية",                      en: "Demo Credentials" },
   demo_customer:      { ar: "عميل",                                en: "Customer" },
   demo_officer:       { ar: "موظف بنك",                            en: "Bank Officer" },
+
+  // ── Customer portal pages ────────────────────────────────────────────────
+  page_overview:              { ar: "الرئيسية",                      en: "Overview" },
+  page_overview_desc:         { ar: "ملخص حسابك وحالتك الأمنية",    en: "Your account summary and security status" },
+  page_call_verify:           { ar: "التحقق من المكالمات",           en: "Call Verification" },
+  page_call_verify_desc:      { ar: "تحقق من صحة مكالمة موظف البنك", en: "Verify if a bank call is legitimate" },
+  page_scam_check:            { ar: "فحص الرسائل",                   en: "Message Scanner" },
+  page_scam_check_desc:       { ar: "تحليل الرسائل المشبوهة بالذكاء الاصطناعي", en: "Analyze suspicious messages with AI" },
+  page_purchase_protect:      { ar: "حماية الشراء",                  en: "Purchase Protection" },
+  page_purchase_protect_desc: { ar: "نظام الحماية الذكي لعمليات الشراء", en: "AI protection system for purchases" },
+  page_account:               { ar: "حسابي",                         en: "My Account" },
+  page_account_desc:          { ar: "تفاصيل حسابك ورصيدك",          en: "Your account details and balance" },
+  page_emergency_freeze:      { ar: "تجميد طارئ",                    en: "Emergency Freeze" },
+  page_emergency_freeze_desc: { ar: "تجميد حسابك فوراً لحمايته",    en: "Freeze your account immediately for protection" },
+  quick_actions:              { ar: "إجراءات سريعة",                 en: "Quick Actions" },
+  recent_notifications:       { ar: "آخر الإشعارات",                 en: "Recent Notifications" },
+  freeze_warning_title:       { ar: "تحذير: هذا الإجراء فوري",       en: "Warning: This Action Is Immediate" },
+  freeze_warning_desc:        { ar: "بمجرد التجميد سيتوقف: التحويلات الصادرة، الشراء الإلكتروني، معاملات البطاقة", en: "Once frozen, these will stop: outgoing transfers, online purchases, card transactions" },
+  what_gets_stopped:          { ar: "ما الذي سيتوقف؟",               en: "What Gets Stopped?" },
+  contact_bank_directly:      { ar: "أو تواصل مع البنك مباشرة",      en: "Or contact the bank directly" },
+  how_it_works:               { ar: "كيف يعمل النظام؟",              en: "How Does It Work?" },
+  step_analyze:               { ar: "تحليل العملية بالذكاء الاصطناعي", en: "AI analyzes the transaction" },
+  step_suspend:               { ar: "تعليق في حالة الاشتباه",         en: "Suspended if suspicious" },
+  step_block:                 { ar: "حظر تلقائي عند ثبوت الاحتيال",  en: "Automatic block if fraud confirmed" },
+  stop_transfers:             { ar: "التحويلات الصادرة",             en: "Outgoing transfers" },
+  stop_online_purchases:      { ar: "الشراء الإلكتروني",             en: "Online purchases" },
+  stop_card_transactions:     { ar: "معاملات البطاقة",               en: "Card transactions" },
+  account_already_frozen:     { ar: "حسابك مجمّد حالياً",            en: "Your account is currently frozen" },
+  account_frozen_note:        { ar: "جميع العمليات الصادرة متوقفة لحمايتك. تواصل مع البنك لإعادة تفعيل الحساب.", en: "All outgoing operations are stopped for your protection. Contact your bank to reactivate the account." },
+  recent_activity:            { ar: "النشاط الأخير",                 en: "Recent Activity" },
+  no_recent_activity:         { ar: "لا يوجد نشاط حديث لعرضه حالياً", en: "No recent activity to display yet" },
+  security_status_title:      { ar: "الحالة الأمنية",                en: "Security Status" },
+  freeze_failed_title:        { ar: "تعذّر تنفيذ التجميد",           en: "Freeze Request Failed" },
 
   // ── Logout ───────────────────────────────────────────────────────────────
   logout_title:  { ar: "تسجيل الخروج",                          en: "Sign Out" },

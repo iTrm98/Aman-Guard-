@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, RefreshCw, Download, ChevronDown, ChevronUp, Skull, AlertTriangle, AlertCircle } from "lucide-react";
 import { useApp } from "../../context/useApp";
 import { useRelativeTime } from "../../hooks/useRelativeTime";
@@ -67,14 +67,23 @@ function CaseRow({ c, isNew, index, t, lang, isMobile, onSelectCase }) {
   );
 }
 
-export default function CasesTable({ cases, onRefresh, highlightId, onExport, onSelectCase, isMobile }) {
+export default function CasesTable({ cases, onRefresh, highlightId, onExport, onSelectCase, isMobile, externalSearch }) {
   const { t, lang } = useApp();
   const [query,  setQuery]   = useState("");
   const [sortBy, setSortBy]  = useState("riskScore");
   const [sortDir,setSortDir] = useState("desc");
 
+  // The topbar search takes over: clear the local filter so the two never mix.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuery("");
+  }, [externalSearch]);
+
+  // Non-empty topbar search wins; otherwise the table's own input filters.
+  const effectiveQuery = externalSearch || query;
+
   const filtered = cases
-    .filter(c => !query || c.id.toLowerCase().includes(query.toLowerCase()) || c.customerName.includes(query))
+    .filter(c => !effectiveQuery || c.id.toLowerCase().includes(effectiveQuery.toLowerCase()) || c.customerName.includes(effectiveQuery))
     .sort((a, b) => {
       const v = sortDir === "asc" ? 1 : -1;
       return sortBy === "riskScore" ? (a.riskScore - b.riskScore) * v : 0;
@@ -149,7 +158,11 @@ export default function CasesTable({ cases, onRefresh, highlightId, onExport, on
               />
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={isMobile ? 4 : 6} style={{ padding:40, textAlign:"center", color:"var(--text-muted)", fontSize:14 }}>{t("no_cases")}</td></tr>
+              <tr>
+                <td colSpan={isMobile ? 4 : 6} style={{ padding:40, textAlign:"center", color:"var(--text-muted)", fontSize:14 }}>
+                  {effectiveQuery ? <>{t("no_search_results")} — "{effectiveQuery}"</> : t("no_cases")}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

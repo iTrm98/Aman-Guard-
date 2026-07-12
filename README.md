@@ -1,70 +1,266 @@
+# AmanGuard 🛡️
+
+**Proactive financial fraud prevention platform** — built for the **Amad Hackathon (مسار التشريعات المالية — Financial Regulations Track)**.
+
+AmanGuard protects bank customers *before* the money leaves the account. Instead of reporting fraud after the fact, it verifies bank calls in real time, analyzes suspicious messages with AI, gates risky purchases the moment they happen, and gives both the customer and the bank's Security Operations Center (SOC) the tools to stop an attack in seconds.
+
+> **أمان جارد: نوقف الاحتيال المالي قبل أن يبدأ — حماية استباقية للعميل والبنك في منصة واحدة.**
+>
+> **AmanGuard: stopping financial fraud before it starts — proactive protection for the customer and the bank in one platform.**
+
 ---
 
-## 🎥 عرض توضيحي للمشروع (Demo Video)
-للاطلاع على كيفية عمل **AmanGuard** بشكل مباشر، يمكنك مشاهدة العرض التقديمي من خلال الرابط التالي:
+## Screenshots
 
-[▶️ شاهد فيديو العرض التقديمي](https://drive.google.com/file/d/1_FFxq7MaQK564Yu2h_aqJZX4F978thZI/view?usp=sharing) 
+> Add screenshots here before the hackathon presentation
 
+**Demo video:** [▶️ Watch the project walkthrough](https://drive.google.com/file/d/1_FFxq7MaQK564Yu2h_aqJZX4F978thZI/view?usp=sharing)
 
-# AmanGuard — واجهة العميل وموظف البنك (Frontend)
+---
 
-واجهة React + Tailwind CSS لتطبيق **AmanGuard**: نظام وقاية استباقية من الاحتيال المالي. يتضمن واجهتين:
+## Tech Stack
 
-- **واجهة العميل**: التحقق من مكالمات البنك، فحص الرسائل/الروابط المشبوهة بالذكاء الاصطناعي، أسئلة تحقق إلزامية، وزر تجميد طارئ للحساب.
-- **لوحة موظف البنك**: إحصائيات حية، وجدول الحالات النشطة مع مستوى الخطورة وإجراءات الموظف.
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 19, Vite 8, Tailwind CSS v4, lucide-react (icons), xlsx (Excel export), Vitest + Testing Library |
+| **Backend** | Java 17, Spring Boot 3.5, Spring Security + JWT, Bucket4j (rate limiting), MySQL 8 + Flyway migrations, Maven |
+| **AI Engine** | Python, FastAPI, uvicorn, OpenAI API |
+| **Languages** | JavaScript (JSX), Java, Python, CSS |
 
-هذا المشروع يغطي الجزء الأمامي (Frontend) فقط، وفق هيكلية المهام في مستند الـ MVP (CUST-001 إلى CUST-006, BANK-001, BANK-002).
+---
 
-## التقنيات
+## Architecture
 
-- React 19 + Vite
-- Tailwind CSS v4
-- lucide-react للأيقونات
+```
+┌─────────────────────────────────────────────────────────┐
+│                    AmanGuard System                      │
+├─────────────────────────────────────────────────────────┤
+│  React Frontend (port 5173)                              │
+│  ├── Customer Portal (6 pages with sidebar nav)          │
+│  └── Bank SOC Dashboard                                  │
+├─────────────────────────────────────────────────────────┤
+│  Spring Boot Backend (port 8080)                         │
+│  ├── JWT Authentication + Role-based access              │
+│  ├── Rate Limiting (Bucket4j)                            │
+│  ├── Fraud Analysis (AI engine + rule-based fallback)    │
+│  ├── Real-time Purchase Protection                       │
+│  ├── Emergency Freeze Workflow                           │
+│  └── MySQL + Flyway migrations                           │
+├─────────────────────────────────────────────────────────┤
+│  Python AI Engine (port 8000)                            │
+│  ├── FastAPI + uvicorn                                   │
+│  ├── POST /analyze-message                               │
+│  └── OpenAI API integration                              │
+├─────────────────────────────────────────────────────────┤
+│  MySQL Database (port 3306)                              │
+│  └── amanguard_db                                        │
+└─────────────────────────────────────────────────────────┘
+```
 
-## الإعداد
+The frontend never talks to the AI engine directly — the backend calls it for message analysis and **falls back to deterministic rule-based scoring automatically** if the engine is down, so the platform keeps working end-to-end without it.
+
+---
+
+## Features
+
+### Customer Portal
+
+- **Overview dashboard** — account card, quick actions, and latest unread notifications
+- **Bank call verification** — one click, no input needed; the backend checks the customer's registered number server-side
+- **AI message scanner** — paste any suspicious message or link, get a risk gauge, detected fraud indicators, mandatory verification questions, and a bilingual recommendation (analysis source shown as "AI" or "rule-based")
+- **Real-time purchase protection** — every simulated purchase is risk-gated into three tiers: **allowed** (green confirmation), **suspended** (full-screen security interception where the customer approves or stops the payment), or **blocked** (final, no customer override; the SOC is notified and critical cases are frozen server-side instantly)
+- **My Account page** — masked balance, account details, activity and security status
+- **Emergency freeze** — dedicated page with a clear explanation of what gets stopped; customer freeze requests enter a bank-approval workflow and produce an official report number
+
+### Bank SOC Dashboard
+
+- **Live fraud cases table** — sortable, searchable, auto-refreshing, with relative timestamps and row highlighting for incoming cases
+- **KPI stats cards** — critical cases, monitored cases, frozen accounts, protected amounts, each with today-vs-yesterday trend deltas computed from real data
+- **Case detail drawer** — full case view with timeline and staff actions: freeze & contact, escalate, dismiss (false positive), and inline editing
+- **Manual case entry** — national-ID lookup autofills the customer, bilingual fraud-pattern dropdown, immediate action selection
+- **XLSX export** — one-click Excel report with Arabic column headers and auto-fit columns
+- **Notifications** — per-user scoped, with click-through that opens the linked case
+
+### System-wide
+
+- **JWT authentication** with strict role-based access (CUSTOMER / BANK_OFFICER) — each role only ever sees its own view, enforced in both UI and API
+- **Full Arabic / English bilingual support** with complete RTL/LTR layout switching
+- **Dark / light theme**
+- **Mobile-responsive layout** — sidebar drawer, reflowed tables, touch-friendly targets
+- **Per-endpoint rate limiting** per user/IP with localized 429 responses
+- **Audit logging** of requests on the backend
+- **AI engine with automatic rule-based fallback** — the demo never breaks if OpenAI is unreachable
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+```
+- Node.js 18+
+- Java 17+
+- Python 3.9+
+- MySQL 8+ (running on port 3306)
+```
+
+### 1. Database setup
+
+```sql
+CREATE DATABASE amanguard_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'amanguard_user'@'localhost' IDENTIFIED BY 'AmanGuard@12345';
+GRANT ALL PRIVILEGES ON amanguard_db.* TO 'amanguard_user'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### 2. AI Engine (optional — the backend falls back to rule-based scoring without it)
+
+```bash
+cd AI
+pip install fastapi uvicorn openai python-dotenv
+# Add OPENAI_API_KEY=your-key to AI/.env
+python phishingGPT.py
+# Runs on http://localhost:8000
+```
+
+### 3. Backend
+
+```bash
+cd backend
+.\mvnw.cmd spring-boot:run   # Windows
+./mvnw spring-boot:run       # Mac/Linux
+# Runs on http://localhost:8080
+# Flyway auto-creates all tables and seeds demo data on first start
+```
+
+### 4. Frontend
 
 ```bash
 npm install
-cp .env.example .env
+# Create .env with: VITE_API_BASE_URL=http://localhost:8080/api
 npm run dev
+# Runs on http://localhost:5173
 ```
 
-## الاتصال بالخادم (Backend)
+---
 
-طبقة الخدمات في `src/api/fraudService.js` مبنية لتطابق نقاط النهاية المتوقعة من خادم Spring Boot:
-
-| Endpoint | الاستخدام |
-|---|---|
-| `GET /call-status` | التحقق من حالة الاتصال البنكي الرسمي (CUST-002) |
-| `POST /analyze` | تحليل النص/الرابط وإرجاع درجة الخطورة وأسئلة التحقق (CUST-003/004, BACK-SB-004) |
-| `POST /freeze` | تجميد الحساب طارئاً وإرجاع رقم البلاغ (CUST-006, BACK-SB-004) |
-| `GET /cases/active` | جلب إحصائيات وجدول الحالات الحية للوحة البنك (BANK-001/002, BACK-SB-004) |
-
-ضبط الرابط الأساسي للخادم عبر متغير البيئة `VITE_API_BASE_URL`.
-
-### وضع المحاكاة (Mock Mode)
-
-إلى حين جاهزية الخادم، تعمل جميع الاستدعاءات تلقائياً بواسطة بيانات وهمية (`src/api/mockData.js`) عندما تكون `VITE_USE_MOCKS=true` (الافتراضي)، أو عند فشل الاتصال الفعلي بالخادم. لتفعيل الاتصال الحقيقي بالكامل، عيّن `VITE_USE_MOCKS=false` في ملف `.env`.
-
-## البنية
+## Demo Credentials
 
 ```
-src/
-  api/            طبقة الاتصال بالخادم + بيانات المحاكاة
-  components/
-    layout/       Navbar, Modal
-    customer/     Hero, CallVerification, ScamChecker, RiskReport
-    bank/         StatsCards, CasesTable
-  views/          CustomerView, BankView
-  App.jsx         إدارة الحالة العامة والتنقل بين الواجهتين
+Customer Account:
+  National ID: 1234567890
+  Password:    Password123!
+
+Bank Officer Account:
+  National ID: 0987654321
+  Password:    Password123!
 ```
 
-## أوامر متاحة
+---
+
+## API Endpoints Reference
+
+| Method | Endpoint | Role | Description |
+|---|---|---|---|
+| POST | `/api/auth/login` | Public | JWT login (national ID + password) |
+| POST | `/api/auth/logout` | Public | Blacklist the access token |
+| GET | `/api/account/me` | CUSTOMER | Account info + computed stats |
+| GET | `/api/call-status` | Authenticated | Verify an active official bank call |
+| POST | `/api/analyze` | Authenticated | Fraud text analysis (AI + fallback) |
+| POST | `/api/freeze` | Authenticated | File an emergency freeze request |
+| PATCH | `/api/freeze/{id}/approve` | BANK_OFFICER | Approve a freeze request |
+| PATCH | `/api/freeze/{id}/reject` | BANK_OFFICER | Reject a freeze request |
+| POST | `/api/transactions/analyze` | CUSTOMER | Purchase risk check (allow/suspend/block) |
+| POST | `/api/transactions/{id}/confirm` | CUSTOMER | Confirm a suspended purchase |
+| POST | `/api/transactions/{id}/cancel` | CUSTOMER | Stop a suspicious purchase |
+| GET | `/api/cases/active` | BANK_OFFICER | Live cases + dashboard stats |
+| GET | `/api/cases/{id}` | BANK_OFFICER | Single case detail |
+| POST | `/api/cases` | BANK_OFFICER | Manual case entry |
+| PUT | `/api/cases/{id}` | BANK_OFFICER | Update a case |
+| GET | `/api/customers/{nationalId}` | BANK_OFFICER | Customer lookup (autofill) |
+| GET | `/api/notifications` | Authenticated | Per-user notifications |
+| PATCH | `/api/notifications/{id}/read` | Authenticated | Mark one notification read |
+| PATCH | `/api/notifications/read-all` | Authenticated | Mark all notifications read |
+| GET | `/api/config/thresholds` | BANK_OFFICER | Read-only risk thresholds |
+
+"Authenticated" = any signed-in role; per-user data (account, notifications) is additionally scoped inside the service layer.
+
+---
+
+## Rate Limits
+
+```
+POST /api/analyze              → 30 requests/minute per user
+POST /api/auth/login           → 5 requests/minute per IP
+POST /api/transactions/analyze → 20 requests/minute per user
+POST /api/freeze               → 10 requests/minute per user
+All other endpoints            → 100 requests/minute per user
+```
+
+Exceeding a limit returns **HTTP 429** with `Retry-After` and a bilingual error message, surfaced inline in the UI.
+
+---
+
+## Security
+
+- JWT access tokens expire after **30 minutes**, refresh tokens after **7 days**; the JWT secret is configurable via the `AMANGUARD_JWT_SECRET` environment variable
+- All passwords hashed with **BCrypt**
+- Role-based endpoint protection (Spring Security) — customer and officer surfaces are fully separated
+- Rate limiting via **Bucket4j** (in-memory, keyed per user, falling back to client IP)
+- The OpenAI API key lives **only** in the Python engine's `.env` — never referenced in Java code, responses, or logs
+- Analyzed message content is **never logged** — failures log metadata only (user ID + text length)
+- Request audit trail persisted by a backend interceptor, queryable by bank officers
+- Per-user notification scoping — users can never read or modify another user's notifications
+
+---
+
+## Project Structure
+
+```
+Aman-Guard/
+├── src/                    # React frontend
+│   ├── api/                # HTTP client + service functions
+│   ├── components/         # Reusable UI components
+│   │   ├── layout/         # Sidebar, Topbar, Modal, Panels, PageHeader, SearchDropdown
+│   │   ├── customer/       # Customer portal components
+│   │   └── bank/           # SOC dashboard components
+│   ├── views/              # Page-level views (LoginView, CustomerView, BankView)
+│   │   └── customer/       # Customer sub-pages (6 pages)
+│   ├── context/            # AppContext (theme, lang, auth, modals, notifications)
+│   ├── i18n/               # Translations + fraud pattern maps
+│   ├── data/               # Static data (customer pages config)
+│   ├── hooks/              # useRelativeTime
+│   └── test/               # Vitest test suite
+├── backend/                # Spring Boot backend
+│   └── src/main/java/com/amanguard/backend/
+│       ├── feature/        # Feature packages (auth, cases, freeze, transactions, ...)
+│       ├── common/         # CORS, exception handling, rate limiting, audit
+│       └── security/       # JWT filter + SecurityConfig
+├── AI/                     # Python AI engine
+│   └── phishingGPT.py      # FastAPI app with OpenAI integration
+└── README.md
+```
+
+---
+
+## Running Tests
 
 ```bash
-npm run dev       # بيئة التطوير
-npm run build     # بناء نسخة الإنتاج
-npm run lint      # فحص الكود
-npm run preview   # معاينة نسخة الإنتاج
+# Frontend tests (Vitest + Testing Library — mocks the network layer)
+npm test
+
+# Backend tests
+cd backend && .\mvnw.cmd test    # Windows
+cd backend && ./mvnw test        # Mac/Linux
 ```
-# Aman-Guard-
+
+---
+
+## Alignment with SAMA Regulations
+
+- **Audit trail** — backend interceptor persists a request audit log for sensitive operations
+- **Role-based access control (RBAC)** — CUSTOMER and BANK_OFFICER separated at both UI and API layers
+- **Account freeze workflow with approval chain** — customer requests are pending until a bank officer approves; critical fraud triggers immediate server-side freezing
+- **Rate limiting** — per-user/per-IP quotas guard against automated abuse
+- **Data isolation** — account data and notifications are scoped to the authenticated user
+- **No sensitive content in logs** — analyzed messages and API keys never appear in logs; only metadata (user ID, text length) is recorded

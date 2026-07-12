@@ -8,6 +8,7 @@ import CustomerView from "./views/CustomerView";
 import BankView     from "./views/BankView";
 import LoginView    from "./views/LoginView";
 import { freezeAccount } from "./api/fraudService";
+import { apiErrorMessage } from "./api/client";
 import { UNAUTHORIZED_PURCHASE_PATTERN_AR, BLOCKED_PURCHASE_PATTERN_AR } from "./i18n/fraudPatterns";
 import { useApp } from "./context/useApp";
 
@@ -23,6 +24,25 @@ function AppShell({ isMobile }) {
   // Sidebar starts open on desktop, closed on mobile. On desktop the topbar
   // toggle collapses it to an icon rail; on mobile it slides in as a drawer.
   const [sidebarOpen,   setSidebarOpen]   = useState(window.innerWidth >= 768);
+  // Active customer portal page. AppShell remounts on every login (App swaps
+  // to LoginView while signed out), so this always starts back at "overview".
+  const [customerPage,  setCustomerPage]  = useState("overview");
+  // Topbar search: the raw value drives the input; views only see a
+  // 300ms-debounced copy so filtering doesn't run on every keystroke.
+  const [searchQuery,     setSearchQuery]     = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Single navigate handler shared by the sidebar sub-nav, the topbar search
+  // dropdown, and the overview quick-action cards. On mobile it also closes
+  // the sidebar drawer so one tap both navigates and dismisses the overlay.
+  function handleCustomerNavigate(pageId) {
+    setCustomerPage(pageId);
+    if (isMobile) setSidebarOpen(false);
+  }
 
   function handleOpenCaseFromNotification(caseId) {
     // Officer-only flow — they are already on the bank view, so just open the case.
@@ -58,7 +78,20 @@ function AppShell({ isMobile }) {
   }
 
   async function executeFreeze(analysisResult, reason = "customer_initiated") {
-    const res = await freezeAccount({ caseId: analysisResult?.caseId, reason });
+    let res;
+    try {
+      res = await freezeAccount({ caseId: analysisResult?.caseId, reason });
+    } catch (err) {
+      // Surfaces backend rejections (e.g. a freeze without a linked fraud
+      // case, or the 10/min rate limit) instead of failing silently.
+      showModal({
+        title:       t("freeze_failed_title"),
+        message:     err?.status === 429 ? t("rate_limit_exceeded") : apiErrorMessage(err, t("data_load_error")),
+        type:        "danger",
+        confirmText: t("ok"),
+      });
+      return;
+    }
     showModal({
       title:      t("freeze_success_title"),
       message:    t("freeze_success_msg", { n: res.reportNumber }),
@@ -104,21 +137,34 @@ function AppShell({ isMobile }) {
         isOpen={sidebarOpen}
         isMobile={isMobile}
         onClose={() => setSidebarOpen(false)}
+        customerPage={customerPage}
+        onCustomerPageChange={handleCustomerNavigate}
       />
 
       <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, overflow:"hidden" }}>
-        <Topbar view={view} isMobile={isMobile} onMenuToggle={() => setSidebarOpen((v) => !v)} />
+        <Topbar
+          view={view}
+          isMobile={isMobile}
+          onMenuToggle={() => setSidebarOpen((v) => !v)}
+          searchQuery={searchQuery}
+          onSearch={setSearchQuery}
+          customerPage={customerPage}
+          onNavigate={handleCustomerNavigate}
+        />
         <main className="p-4 sm:p-5 md:p-7" style={{ flex:1, overflowY:"auto", background:"var(--bg-app)", transition:"background 0.25s" }}>
           <div style={{ maxWidth:1080, margin:"0 auto" }}>
             {view === "customer"
               ? <CustomerView
                   isMobile={isMobile}
+                  customerPage={customerPage}
+                  onNavigate={handleCustomerNavigate}
                   onFreezeRequest={handleFreezeRequest}
                   onPurchaseFreeze={(stopped) => executeFreeze(stopped, UNAUTHORIZED_PURCHASE_PATTERN_AR)}
                   onPurchaseBlocked={handlePurchaseBlocked}
                 />
               : <BankView
                   isMobile={isMobile}
+                  searchQuery={debouncedSearch}
                   injectedCase={frozenCase}
                   caseToOpen={caseToOpen}
                   onCaseOpened={() => setCaseToOpen(null)}

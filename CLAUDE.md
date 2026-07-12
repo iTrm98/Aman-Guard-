@@ -44,6 +44,13 @@ src/
     fraudService.js     Service functions — every one calls the real backend directly, no mock fallback.
                         Also holds login(nationalId, password) and logout() (POST /auth/login, /auth/logout).
 
+  data/
+    customerPages.js    CUSTOMER_PAGES — id, emoji icon, bilingual label/desc, and search keywords for the
+                        6 customer portal pages (overview / call-verify / scam-check / purchase-protect /
+                        account / emergency-freeze). Single source of truth for the Sidebar sub-nav, the
+                        Topbar page title, and SearchDropdown results. Page components themselves use the
+                        page_* translation keys via t(), not this file.
+
   hooks/
     useRelativeTime.js  useRelativeTime(isoString) → localized "5 minutes ago" string, re-computed every 60s
 
@@ -77,8 +84,25 @@ src/
                               Responsive via isOpen/isMobile/onClose props (from App, inline styles — no
                               Tailwind md: classes): desktop collapses to a 60px icon rail when isOpen is
                               false; mobile renders a fixed overlay drawer (80vw/max 280px) that slides
-                              off-screen (RTL-aware translateX) when closed. The mobile backdrop lives in App.jsx
-      Topbar.jsx              Header: title, search, language toggle, theme toggle, bell
+                              off-screen (RTL-aware translateX) when closed. The mobile backdrop lives in App.jsx.
+                              For CUSTOMER role it renders the portal sub-nav under the main nav item (one row
+                              per CUSTOMER_PAGES entry): expanded → emoji + label (13px, ≥44px tap height on
+                              mobile), collapsed desktop rail → icon-only with tooltip; the active page row has
+                              a var(--gold) background. Rows call onCustomerPageChange — App.jsx's shared
+                              navigate handler, which also closes the mobile drawer
+      Topbar.jsx              Header: title, search, language toggle, theme toggle, bell. The search input
+                              is a controlled component: value={searchQuery} + onChange → onSearch(raw value),
+                              both props from App.jsx (AppShell). Topbar never debounces or filters itself.
+                              Customer view: title/subtitle show the ACTIVE portal page (customerPage prop
+                              looked up in CUSTOMER_PAGES, bilingual) and a non-empty query renders
+                              SearchDropdown; bank view keeps the generic title + cases-filter search
+      SearchDropdown.jsx      Customer-portal search results anchored under the topbar input: filters
+                              CUSTOMER_PAGES by keywords/labels/descs; row click → onNavigate(page.id), then
+                              Topbar clears the query which closes the dropdown. Desktop: absolute 300px
+                              panel; mobile: fixed full-width minus 32px, 60vh max height, ≥56px rows
+      PageHeader.jsx          Shared customer page header (emoji icon + t(titleKey) + t(descKey) + isMobile).
+                              Mobile sizing: icon/title via the .page-header-* media-query classes in
+                              index.css; description font + bottom margin via the isMobile prop
       NotificationsPanel.jsx  Slide-in drawer — clickable rows (mark read + open linked case), type badges, loading skeleton, mark all read
       SettingsPanel.jsx       Slide-in drawer — theme picker + language picker + app info; when opened
                               from the bank view (App.jsx passes view prop) also shows a read-only
@@ -89,7 +113,8 @@ src/
       AccountCard.jsx         Fetches GET /account/me — masked balance, security badges, mini stats; loading/error/retry states
       CallVerification.jsx    One-button check — no user input. GET /call-status (no params); the backend
                               looks up the current user's registered number server-side
-      ScamChecker.jsx         Paste suspicious text → fraud analysis (POST /analyze)
+      ScamChecker.jsx         Paste suspicious text → fraud analysis (POST /analyze); optional isMobile prop
+                              shrinks the textarea to 3 rows on phones
       RiskReport.jsx          SVG gauge + findings list + interruption questions + freeze CTA
       PurchaseCheckout.jsx    "Simulate Purchase" card: merchant/amount/URL/type form →
                               POST /transactions/analyze, then gates on the response action:
@@ -110,7 +135,11 @@ src/
 
     bank/
       StatsCards.jsx          4 KPI cards with dynamic trend chips computed from backend today-vs-yesterday deltas
-      CasesTable.jsx          Sortable + searchable fraud cases table; CaseRow uses useRelativeTime + displayFraudPattern
+      CasesTable.jsx          Sortable + searchable fraud cases table; CaseRow uses useRelativeTime + displayFraudPattern.
+                              Accepts externalSearch (topbar search, via BankView): when non-empty it overrides
+                              the local search input (externalSearch || query) and resets it on change; when
+                              empty the local input filters independently. Search miss → no_search_results row,
+                              empty table → no_cases
       CaseDetailPanel.jsx     Slide-in drawer: details, timeline, Freeze/Escalate/Dismiss + EDIT MODE
                               (name/pattern/score/status/notes → PUT /cases/{id}; gauge updates live while
                               typing the score; on save fires onAction("updated", updatedCase) so BankView
@@ -123,9 +152,27 @@ src/
     LoginView.jsx       Full-screen national-id + password login (login() → POST /auth/login), bilingual,
                         with a collapsible demo-credentials panel. On success calls completeLogin; App.jsx
                         renders this instead of the shell whenever isAuthenticated is false.
-    CustomerView.jsx    Assembles AccountCard + CallVerification + ScamChecker + RiskReport +
-                        PurchaseCheckout (receives onPurchaseFreeze from App.jsx)
-    BankView.jsx        Assembles StatsCards + CasesTable + CaseDetailPanel; error banner + retry if the fetch fails; handles XLSX export
+    CustomerView.jsx    PURE PAGE ROUTER for the customer portal: maps the customerPage prop (App.jsx state)
+                        to one of the six views/customer/ pages and threads isMobile + the freeze/purchase
+                        callbacks; unknown ids fall back to the overview page. No layout of its own
+    customer/           One dedicated page per portal feature. Every page starts with PageHeader and has
+                        overflowX:"hidden" on its root; new-page grids use the customer-page-grid-2/3 classes:
+      OverviewPage.jsx         AccountCard + 3 quick-action cards (→ onNavigate to the feature pages) +
+                               the last 3 UNREAD notifications from context (hook-per-row subcomponent)
+      CallVerifyPage.jsx       CallVerification centered at max-width 600px (100% on mobile)
+      ScamCheckPage.jsx        ScamChecker + RiskReport below it; owns the analysisResult state and the
+                               required-field modal that used to live in CustomerView
+      PurchaseProtectPage.jsx  "How it works" 3-step card + PurchaseCheckout (which renders the
+                               interception overlay / transaction result itself, unchanged)
+      AccountPage.jsx          AccountCard + its own GET /account/me fetch feeding a recent-activity list
+                               (placeholder until the backend returns a transactions array) and a
+                               security-status card (status badge + protected chip)
+      EmergencyFreezePage.jsx  Fetches GET /account/me: status "frozen" → frozen status card; otherwise
+                               warning card + what-gets-stopped list + large btn-danger freeze button
+                               (≥56px on mobile) calling onFreezeRequest() with NO analysis result (see the
+                               case-less freeze caveat in What's NOT Done) + contact-the-bank fallback row
+    BankView.jsx        Assembles StatsCards + CasesTable + CaseDetailPanel; error banner + retry if the fetch
+                        fails; handles XLSX export. Forwards its searchQuery prop to CasesTable as externalSearch
 
   test/
     setup.js                @testing-library/jest-dom setup
@@ -139,8 +186,14 @@ src/
 
   App.jsx             App() computes isMobile (window.innerWidth < 768, updated on resize) once and threads it
                       as a prop to LoginView + AppShell → Topbar/Sidebar/CustomerView/BankView (never via
-                      context). AppShell owns sidebarOpen (collapse/drawer toggle, default open on desktop) +
-                      freeze flow, renders Sidebar+Topbar+views + the mobile sidebar backdrop
+                      context). AppShell owns sidebarOpen (collapse/drawer toggle, default open on desktop),
+                      customerPage (default "overview"; resets on every login because AppShell remounts when
+                      auth flips) + the shared handleCustomerNavigate(pageId) — sets the page AND closes the
+                      mobile drawer; passed to Sidebar (onCustomerPageChange), Topbar (onNavigate, for
+                      SearchDropdown) and CustomerView (onNavigate) — the topbar search state (searchQuery
+                      raw → Topbar; debouncedSearch, a 300ms setTimeout copy → BankView only) + the freeze
+                      flow (executeFreeze catches API failures → freeze_failed_title danger modal), renders
+                      Sidebar+Topbar+views + the mobile sidebar backdrop
   main.jsx            Entry point — wraps App in AppProvider
   index.css           All CSS: custom properties, dark mode, utility classes
 
@@ -536,6 +589,25 @@ You can't call a hook (like `useRelativeTime`) directly inside a `.map()` callba
 - Use `insetInlineStart` / `insetInlineEnd` instead of `left` / `right` in inline styles for RTL-aware positioning
 - Use `paddingInlineStart` / `paddingInlineEnd` instead of `paddingLeft` / `paddingRight`
 
+### Topbar search flow (global search)
+State lives in `AppShell` (App.jsx): `searchQuery` (raw keystrokes) + `debouncedSearch` (300ms `setTimeout` copy — the only debounce in the chain).
+- **App.jsx → Topbar**: `searchQuery={searchQuery}` + `onSearch={setSearchQuery}` — controlled input, passes the raw value up on every keystroke.
+- **App.jsx → BankView → CasesTable**: `searchQuery={debouncedSearch}` → `externalSearch={searchQuery}`. A non-empty `externalSearch` overrides the table's local search (`externalSearch || query` — deliberately `||`, not `??`, because App always passes a string) and resets the local input whenever it changes; when empty, the table's own search input works independently.
+- **Customer view**: the debounced value is NOT used. Topbar itself renders `SearchDropdown` while the raw query is non-empty, matching `CUSTOMER_PAGES` keywords/labels/descs; picking a result calls the shared navigate handler and clears the query (which closes the dropdown). The old hint card is gone (`search_results_for` / `search_customer_hint` keys remain in translations.js but are unused).
+- Empty filter result while a search is active shows `no_search_results — "term"`; an empty table with no search shows `no_cases`.
+
+### Customer portal navigation (multi-page)
+There is still **no routing library**. `customerPage` (AppShell state in App.jsx) is the single source of
+truth: the Sidebar sub-nav, the topbar SearchDropdown, and the Overview quick-action cards all call the same
+`handleCustomerNavigate(id)`, and CustomerView renders the matching `views/customer/*Page`; the Topbar shows
+that page's bilingual label + description. Pages remount on every switch, so per-page state (e.g.
+ScamCheckPage's analysis result) is intentionally lost when navigating away. **To add a portal page:** add an
+entry to `src/data/customerPages.js`, a `page_*` / `page_*_desc` translation pair, a component in
+`src/views/customer/` (PageHeader at the top, `overflowX:"hidden"` root), and one line in CustomerView's map.
+Mobile reflow for new pages uses the `customer-page-grid-2` / `customer-page-grid-3` `!important`
+media-query classes in index.css (they must beat the inline desktop `gridTemplateColumns`), card padding
+drops to 12–16px, and buttons keep ≥44px tap targets.
+
 ### Adding a new backend feature
 Follow the existing `feature/<name>/` package convention (see Project Structure above) — `model/`, `repository/`, `config/<Name>DataInitializer.java`, `dto/response/`, `service/` + `service/impl/`, `controller/`. `feature/callverification` is the simplest complete example to copy from.
 
@@ -574,8 +646,9 @@ What genuinely works end-to-end right now (frontend ↔ backend), what exists on
 - **AI-first fraud analysis** — POST /api/analyze calls the Python AI engine and falls back to rule-based scoring if it's unreachable; `RiskReport` shows a gold "Analyzed by AI" / gray "Rule-based" chip from `analysisSource`
 - **Per-endpoint rate limiting** — Bucket4j filter (analyze 30/min, auth/login 5/min/IP, transactions/analyze 20/min, freeze 10/min, else 100/min); 429 surfaces inline (`rate_limit_exceeded`) in ScamChecker + PurchaseCheckout, not a modal
 - **Role-based access** — a customer only ever sees the portal and an officer only the SOC dashboard (Sidebar renders one nav item; App.jsx derives the view from role so it can't be switched), enforced again in SecurityConfig; notifications are scoped per user
-- Full customer portal: one-button call verify (GET /api/call-status), fraud text analysis (POST /api/analyze), risk report, emergency freeze, purchase simulation with allow / suspend (interception overlay) / block gating
+- Full customer portal, now **multi-page** (overview / call verify / message scan / purchase protection / my account / emergency freeze) — sidebar sub-nav, topbar search dropdown, and overview quick actions all drive the same customerPage state. Features unchanged: one-button call verify (GET /api/call-status), fraud text analysis (POST /api/analyze) + risk report, purchase simulation with allow / suspend (interception overlay) / block gating; plus the new account-detail and standalone emergency-freeze pages
 - Full bank SOC dashboard: live stats with trend deltas, sortable/searchable case table with relative timestamps, case detail drawer with freeze / escalate / dismiss / edit, manual case entry with national-id autofill, XLSX export
+- Topbar global search (frontend-only): bank view — debounced 300ms in App.jsx, filters the SOC cases table (overrides its local search input); customer view — SearchDropdown over CUSTOMER_PAGES keywords that navigates between portal pages
 - Freeze request → bank-approval workflow (customer freezes are PENDING until staff approve; staff freezes approve immediately)
 - Notifications: backend-fetched, 60s polling, mark read / mark all read, click-through to the linked case
 - Dark/light theme, Arabic/English toggle with full RTL/LTR swap, correct financial-domain Arabic throughout
@@ -595,7 +668,7 @@ What genuinely works end-to-end right now (frontend ↔ backend), what exists on
 - **AI on the purchase path** — `/api/analyze` now calls the Python AI engine (with automatic rule-based fallback), but `/api/transactions/analyze` is still deterministic rule-based scoring (merchant whitelist + URL keyword lists in `backend/src/main/resources/merchants.json` / `fraud_keywords.json`) and is not yet wired to the engine. The engine itself (`AI/phishingGPT.py`) is OpenAI-backed, not a locally trained model, and emits Arabic-only output (English findings mirror the Arabic until the engine is bilingual).
 - **Frontend WebSockets** — backend `/ws` exists; the frontend still relies on polling + prop injection.
 - **Responsive / mobile layout** — Core views are now responsive below 768px via an `isMobile` prop (computed once in `App.jsx`, threaded down — new mobile work uses inline `isMobile ? …` conditionals, not Tailwind responsive classes): the sidebar collapses to an icon rail (desktop) / slides in as a drawer (mobile), the cases table drops the pattern + account columns, stats/forms/interception overlay reflow, and slide-in panels go full-width (`.panel-drawer` media query). Desktop (≥768px) is unchanged. Not every micro-layout is tuned for the smallest phones.
-- **Real search in Topbar** — The search input in the header has no handler yet.
+- **Case-less emergency freeze** — POST /api/freeze requires an existing fraud case (`validateFraudCase` rejects a null caseId), so the standalone button on EmergencyFreezePage currently gets a backend error, surfaced via the freeze_failed_title modal. Freezes from RiskReport / purchase-stop work because those flows create a case first. Needs a nullable-caseId freeze path server-side.
 - **Pagination** — Cases table shows the 20 most recent cases with no pagination.
 
 ---

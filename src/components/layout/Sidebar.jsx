@@ -1,9 +1,10 @@
 import { ShieldCheck, LayoutDashboard, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useApp } from "../../context/useApp";
+import { CUSTOMER_PAGES } from "../../data/customerPages";
 
 const ROLE_VIEW = { CUSTOMER: "customer", BANK_OFFICER: "bank" };
 
-export default function Sidebar({ view, onSwitchView, isOpen, isMobile, onClose }) {
+export default function Sidebar({ view, onSwitchView, isOpen, isMobile, onClose, customerPage, onCustomerPageChange }) {
   const { t, lang, unreadCount, openPanel, showModal, currentUser, logout } = useApp();
   const displayName = lang === "en" ? currentUser.nameEn : currentUser.name;
   const rtl = lang === "ar";
@@ -121,6 +122,39 @@ export default function Sidebar({ view, onSwitchView, isOpen, isMobile, onClose 
             {!collapsed && view === id && <ChevronActive style={{ width:12, height:12, color:"#9784e2", flexShrink:0 }} />}
           </button>
         ))}
+
+        {/* Customer portal sub-navigation — one entry per portal page. The
+            navigate handler (App.jsx) also closes the mobile drawer. Collapsed
+            desktop rail shows icon-only with a tooltip. */}
+        {currentUser.role === "CUSTOMER" && (
+          <div style={{ marginTop:4, display:"flex", flexDirection:"column", gap:2 }}>
+            {CUSTOMER_PAGES.map((p) => {
+              const active = customerPage === p.id;
+              const label  = lang === "en" ? p.labelEn : p.labelAr;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => onCustomerPageChange?.(p.id)}
+                  title={collapsed ? label : undefined}
+                  className="sidebar-item"
+                  style={{
+                    fontSize:13, borderRadius:8,
+                    padding: collapsed ? "8px 0" : "8px 12px",
+                    paddingInlineStart: collapsed ? 0 : 26,
+                    justifyContent: collapsed ? "center" : "flex-start",
+                    minHeight: isMobile ? 44 : undefined,
+                    ...(active ? { background:"var(--gold)", color:"#fff", fontWeight:700 } : {}),
+                  }}
+                >
+                  <span style={{ fontSize:15, flexShrink:0, lineHeight:1 }}>{p.icon}</span>
+                  {!collapsed && (
+                    <span style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{label}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Demo hint — only when no real role is present and the sidebar is expanded */}
         {showDemoHint && !collapsed && (

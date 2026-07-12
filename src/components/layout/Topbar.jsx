@@ -1,14 +1,23 @@
 import { Search, Bell, Sun, Moon, Menu } from "lucide-react";
 import { useApp } from "../../context/useApp";
+import { CUSTOMER_PAGES } from "../../data/customerPages";
+import SearchDropdown from "./SearchDropdown";
 
-export default function Topbar({ view, isMobile, onMenuToggle }) {
+export default function Topbar({ view, isMobile, onMenuToggle, searchQuery = "", onSearch, customerPage, onNavigate }) {
   const { t, theme, toggleTheme, lang, toggleLang, unreadCount, openPanel } = useApp();
 
   const titles = {
     customer: { main: t("topbar_customer_title"), sub: t("topbar_customer_sub"), short: t("topbar_customer_short") },
     bank:     { main: t("topbar_bank_title"),     sub: t("topbar_bank_sub"),     short: t("topbar_bank_short")     },
   };
-  const { main, sub, short } = titles[view] ?? titles.customer;
+  const base = titles[view] ?? titles.customer;
+
+  // Customer view: the topbar reflects the active portal page rather than
+  // the generic portal title.
+  const activePage = view === "customer" ? CUSTOMER_PAGES.find((p) => p.id === customerPage) : null;
+  const main  = activePage ? (lang === "en" ? activePage.labelEn : activePage.labelAr) : base.main;
+  const sub   = activePage ? (lang === "en" ? activePage.descEn  : activePage.descAr)  : base.sub;
+  const short = activePage ? (lang === "en" ? activePage.labelEn : activePage.labelAr) : base.short;
 
   return (
     <header className="px-3 sm:px-4 md:px-6" style={{ height:64, background:"var(--bg-surface)", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexShrink:0, transition:"background 0.25s" }}>
@@ -32,10 +41,21 @@ export default function Topbar({ view, isMobile, onMenuToggle }) {
         <div className="hidden lg:block" style={{ position:"relative" }}>
           <Search style={{ width:14, height:14, position:"absolute", insetInlineEnd:12, top:"50%", transform:"translateY(-50%)", color:"var(--text-muted)", pointerEvents:"none" }} />
           <input
-            placeholder={t("quick_search")}
+            value={searchQuery}
+            onChange={e => onSearch?.(e.target.value)}
+            placeholder={view === "customer" ? t("quick_search") : t("search_placeholder")}
             className="input-field"
             style={{ width:200, paddingTop:7, paddingBottom:7, paddingInlineEnd:36 }}
           />
+          {/* Customer portal: search matches pages and navigates to them.
+              Selecting a result clears the query, which closes the dropdown. */}
+          {view === "customer" && searchQuery.trim() !== "" && (
+            <SearchDropdown
+              query={searchQuery}
+              isMobile={isMobile}
+              onNavigate={(pageId) => { onNavigate?.(pageId); onSearch?.(""); }}
+            />
+          )}
         </div>
 
         {/* Language toggle */}

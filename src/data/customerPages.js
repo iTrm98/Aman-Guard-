@@ -1,0 +1,60 @@
+// Customer portal pages — single source of truth for the sidebar sub-nav,
+// the topbar page title, and the search dropdown. Bilingual data file
+// (same pattern as i18n/fraudPatterns.js); page components themselves use
+// the page_* translation keys via t().
+export const CUSTOMER_PAGES = [
+  {
+    id: "overview",
+    icon: "🏠",
+    labelAr: "الرئيسية",
+    labelEn: "Overview",
+    descAr: "ملخص الحساب والحالة الأمنية",
+    descEn: "Account summary and security status",
+    keywords: ["home", "overview", "main", "الرئيسية", "ملخص", "حساب"],
+  },
+  {
+    id: "call-verify",
+    icon: "📞",
+    labelAr: "التحقق من المكالمات",
+    labelEn: "Call Verification",
+    descAr: "تحقق من صحة مكالمة موظف البنك",
+    descEn: "Verify if a bank call is legitimate",
+    keywords: ["call", "phone", "verify", "مكالمة", "تحقق", "اتصال", "بنك"],
+  },
+  {
+    id: "scam-check",
+    icon: "🔍",
+    labelAr: "فحص الرسائل",
+    labelEn: "Message Scanner",
+    descAr: "تحليل رسائل ورسائل مشبوهة بالذكاء الاصطناعي",
+    descEn: "Analyze suspicious messages and links with AI",
+    keywords: ["analyze", "scam", "message", "رسالة", "تحليل", "احتيال", "رابط", "فحص", "scan"],
+  },
+  {
+    id: "purchase-protect",
+    icon: "🛒",
+    labelAr: "حماية الشراء",
+    labelEn: "Purchase Protection",
+    descAr: "اختبر نظام الحماية الذكي لعمليات الشراء",
+    descEn: "Test the AI purchase protection system",
+    keywords: ["purchase", "buy", "shop", "شراء", "متجر", "دفع", "بطاقة", "protect"],
+  },
+  {
+    id: "account",
+    icon: "💳",
+    labelAr: "حسابي",
+    labelEn: "My Account",
+    descAr: "عرض رصيدك وتفاصيل حسابك",
+    descEn: "View your balance and account details",
+    keywords: ["account", "balance", "iban", "حساب", "رصيد", "بطاقة"],
+  },
+  {
+    id: "emergency-freeze",
+    icon: "❄️",
+    labelAr: "تجميد طارئ",
+    labelEn: "Emergency Freeze",
+    descAr: "تجميد حسابك فوراً في حالة الاحتيال",
+    descEn: "Freeze your account immediately in case of fraud",
+    keywords: ["freeze", "emergency", "block", "تجميد", "طارئ", "إيقاف", "حماية"],
+  },
+];

@@ -20,7 +20,7 @@ function formatExportTimestamp(isoString) {
   });
 }
 
-export default function BankView({ isMobile, injectedCase, caseToOpen, onCaseOpened }) {
+export default function BankView({ isMobile, searchQuery, injectedCase, caseToOpen, onCaseOpened }) {
   const { t, lang, showModal, refreshNotifications } = useApp();
   const [stats,       setStats]       = useState(null);
   const [cases,       setCases]       = useState([]);
@@ -175,6 +175,7 @@ export default function BankView({ isMobile, injectedCase, caseToOpen, onCaseOpe
       <CasesTable
         isMobile={isMobile}
         cases={cases}
+        externalSearch={searchQuery}
         onRefresh={load}
         highlightId={injectedCase?.id}
         onExport={handleExport}

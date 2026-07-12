@@ -1,27 +1,21 @@
-import { useState } from "react";
-import AccountCard    from "../components/customer/AccountCard";
-import CallVerification from "../components/customer/CallVerification";
-import ScamChecker    from "../components/customer/ScamChecker";
-import RiskReport     from "../components/customer/RiskReport";
-import PurchaseCheckout from "../components/customer/PurchaseCheckout";
-import { useApp }     from "../context/useApp";
+import OverviewPage        from "./customer/OverviewPage";
+import CallVerifyPage      from "./customer/CallVerifyPage";
+import ScamCheckPage       from "./customer/ScamCheckPage";
+import PurchaseProtectPage from "./customer/PurchaseProtectPage";
+import AccountPage         from "./customer/AccountPage";
+import EmergencyFreezePage from "./customer/EmergencyFreezePage";
 
-export default function CustomerView({ isMobile, onFreezeRequest, onPurchaseFreeze, onPurchaseBlocked }) {
-  const { t, showModal } = useApp();
-  const [analysisResult, setAnalysisResult] = useState(null);
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:18 }} className="animate-fade-in">
-      <AccountCard isMobile={isMobile} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        <CallVerification />
-        <ScamChecker
-          onResult={setAnalysisResult}
-          onValidationError={() => showModal({ title:t("field_required_title"), message:t("field_required_msg"), type:"info" })}
-        />
-      </div>
-      {analysisResult && <RiskReport result={analysisResult} onFreezeRequest={onFreezeRequest} />}
-      <PurchaseCheckout isMobile={isMobile} onPurchaseFreeze={onPurchaseFreeze} onPurchaseBlocked={onPurchaseBlocked} />
-    </div>
-  );
+// Pure page router for the customer portal. customerPage state lives in
+// App.jsx (AppShell); the sidebar sub-nav, topbar search dropdown, and the
+// overview quick-action cards all navigate through the same onNavigate.
+export default function CustomerView({ customerPage, onNavigate, isMobile, onFreezeRequest, onPurchaseFreeze, onPurchaseBlocked }) {
+  const pages = {
+    "overview":         <OverviewPage isMobile={isMobile} onNavigate={onNavigate} onFreezeRequest={onFreezeRequest} />,
+    "call-verify":      <CallVerifyPage isMobile={isMobile} />,
+    "scam-check":       <ScamCheckPage isMobile={isMobile} onFreezeRequest={onFreezeRequest} />,
+    "purchase-protect": <PurchaseProtectPage isMobile={isMobile} onPurchaseFreeze={onPurchaseFreeze} onPurchaseBlocked={onPurchaseBlocked} />,
+    "account":          <AccountPage isMobile={isMobile} />,
+    "emergency-freeze": <EmergencyFreezePage isMobile={isMobile} onFreezeRequest={onFreezeRequest} />,
+  };
+  return pages[customerPage] ?? pages["overview"];
 }

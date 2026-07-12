@@ -3,7 +3,7 @@ import { ScanText, Sparkles, Loader2 } from "lucide-react";
 import { analyzeText } from "../../api/fraudService";
 import { useApp } from "../../context/useApp";
 
-export default function ScamChecker({ onResult, onValidationError }) {
+export default function ScamChecker({ isMobile, onResult, onValidationError }) {
   const { t } = useApp();
   const [text,      setText]      = useState("");
   const [loading,   setLoading]   = useState(false);
@@ -39,7 +39,7 @@ export default function ScamChecker({ onResult, onValidationError }) {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value.slice(0, 500))}
-          rows={4}
+          rows={isMobile ? 3 : 4}
           placeholder={t("scam_placeholder")}
           className="input-field"
           style={{ resize:"none", paddingBottom:28 }}
