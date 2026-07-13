@@ -2,7 +2,7 @@
 
 A small FastAPI service that uses an LLM (via the OpenAI API) to analyze text messages and flag phishing.
 
-The project has two files:
+The project has three files:
 
 | File | Role |
 |---|---|
@@ -10,36 +10,38 @@ The project has two files:
 | `run_api_tests.py` | A test client — sends 10 sample messages (5 Arabic, 5 English) to the running server and prints the results |
 | `requirements.txt` | The libraries and framworks thats used here |
 ---
+## 2. Core Endpoints
 
-## 1. `phishingGPT.py` — The API Server
+### A. URL Analysis (`POST /analyze-url`)
+Analyzes a given URL for potential threats, domain age, and visual deception (Typosquatting).
+*   **Input Body:** `{ "url": "https://example.com", "is_cross_domain": false }`.
+*   **How it works:** 
+    1. Extracts the domain and safely handles local/virtual URLs (e.g., `file://`, `about:`).
+    2. Checks if the domain is in the trusted whitelist (e.g., `amazon.com`, `noon.com`).
+    3. If whitelisted or local, it bypasses WHOIS and assigns a safe default age of **90 days** (since the suspicious threshold is set to 30 days).
+    4. If not whitelisted, it fetches the domain's creation date using the WHOIS protocol to flag newly created suspicious sites.
+    5. Passes the unknown domain to the AI to check if it is imitating known brands.
+*   **Returns:** A `URLAnalysisResponse` object containing the domain age, cross-domain status, whitelist status, and structured AI findings.
 
-### What it does
-This spins up a FastAPI app (`AmanGuard AI Engine`) with two endpoints. The main one, `/analyze-message`, sends the message text to `gpt-4o-mini` with a system prompt instructing it to act as a financial security analyst. It uses OpenAI's **structured outputs** feature (`client.beta.chat.completions.parse`) with a Pydantic schema (`PhishingAnalysis`), so the model's reply is guaranteed to come back as valid, typed JSON rather than free-form text you'd have to parse yourself.
+### B. Message Analysis (`POST /analyze-message`)
+Analyzes SMS or email text to classify if it is a phishing attempt or a legitimate notification.
+*   **Input Body:** `{ "message_text": "..." }`.
+*   **How it works:** Sends the text to `gpt-4o-mini` with a strict system prompt acting as a financial security analyst. Uses OpenAI's structured outputs to guarantee a typed JSON response.
+*   **Returns:** A `PhishingAnalysis` object containing:
+    *   `is_phishing` (bool): Whether the message is malicious.
+    *   `risk_score` (int): 0-100 severity score.
+    *   `risk_level` (str): `Low`, `Medium`, `High`, or `Critical`.
+    *   `recommended_action` (str): Actionable backend commands (`PROCEED`, `WARN`, `HOLD_TRANSACTION`, `FREEZE_ACCOUNT`).
+    *   `reasons` & `red_flags` (list): Detailed justifications in Arabic.
 
+---
 
-### Response schema (`PhishingAnalysis`)
-| Field | Type | Meaning |
-|---|---|---|
-| `is_phishing` | bool | Whether the message is judged malicious |
-| `risk_score` | int (0–100) | Numeric risk level |
-| `risk_level` | str | `Low`, `Medium`, `High`, or `Critical` |
-| `recommended_action` | str | `PROCEED`, `WARN`, `HOLD_TRANSACTION`, or `FREEZE_ACCOUNT` |
-| `reasons` | list[str] | Justification, in Arabic |
-| `red_flags` | list[str] | Specific red flags detected, in Arabic |
+## 3. Fail-Safe & Error Handling
+The engine is designed to never crash the client extension:
+*   **OpenAI Failures:** If the OpenAI API key is missing or the connection fails, the `/analyze-message` endpoint returns a cautious fallback response (High risk, WARN action) to keep the user safe.
+*   **WHOIS Failures:** The backend supports both `whois` and `python-whois` wrappers to prevent OS-level crashes. If domain age extraction fails, it defaults to `-1` (suspicious age). 
 
-The system prompt maps risk level to action directly (Low → PROCEED, Medium → WARN, High/Critical → HOLD_TRANSACTION), and instructs the model to treat plain bank notifications without links as `Safe`.
-
-### Endpoints
-- **`POST /analyze-message`**
-  Body: `{ "message_text": "..." }`
-  Returns a `PhishingAnalysis` object as above.
-
-- **`POST /analyze-transaction`**
-  No input required. Currently returns a **hardcoded mock response** (risk_score 90, Critical, HOLD_TRANSACTION) — it doesn't call the LLM yet. Useful as a placeholder for a future transaction-risk model or for frontend testing.
-
-### Error handling
-If the OpenAI call fails for any reason (bad key, network issue, rate limit, etc.), the endpoint doesn't crash — it returns a **fallback result**: `is_phishing=True`, risk 85/High, action `WARN`, with a generic Arabic message noting the AI connection failed. This means a failure is treated cautiously (fail-safe toward "warn the user") rather than silently passing the message through.
-
+---
 ### Two ways to run it
 ```bash
 # Normal mode
@@ -59,8 +61,13 @@ The server runs on **`http://127.0.0.1:8000`** via Uvicorn. CORS is wide open (`
    ```
 2. Install dependencies:
    ```bash
-   pip install fastapi uvicorn openai python-dotenv pydantic
+   pip install fastapi uvicorn openai python-dotenv pydantic whois
    ```
+   or
+   ```bash
+   pip install -r requirements.txt
+   ```
+   
    If `OPENAI_API_KEY` isn't found, the server still starts but every `/analyze-message` call will return `500 OPENAI_API_KEY is missing`.
 
 ---
