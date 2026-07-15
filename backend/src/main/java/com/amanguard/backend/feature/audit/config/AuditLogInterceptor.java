@@ -34,8 +34,17 @@ public class AuditLogInterceptor implements HandlerInterceptor {
                             .getAuthentication();
 
             if (authentication == null
-                    || !authentication.isAuthenticated()
-                    || !isBankOfficer(authentication)) {
+                    || !authentication.isAuthenticated()) {
+                return;
+            }
+
+            boolean isOfficer = isBankOfficer(authentication);
+
+            // Officers: every request (unchanged behavior). Customers: only
+            // state-changing requests — auditing their GETs would flood the
+            // table with the 60-second notification polling and account reads.
+            if (!isOfficer
+                    && "GET".equalsIgnoreCase(request.getMethod())) {
                 return;
             }
 
@@ -47,12 +56,13 @@ public class AuditLogInterceptor implements HandlerInterceptor {
                 return;
             }
 
-            String officerId = String.valueOf(
+            String userId = String.valueOf(
                     authentication.getPrincipal()
             );
 
-            auditLogService.recordOfficerAction(
-                    officerId,
+            auditLogService.recordUserAction(
+                    userId,
+                    resolveRole(authentication),
                     buildAction(
                             request.getMethod(),
                             path
@@ -75,6 +85,17 @@ public class AuditLogInterceptor implements HandlerInterceptor {
                 .stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch("ROLE_BANK_OFFICER"::equals);
+    }
+
+    private String resolveRole(Authentication authentication) {
+        return authentication
+                .getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(a -> a.startsWith("ROLE_"))
+                .map(a -> a.substring("ROLE_".length()))
+                .findFirst()
+                .orElse("UNKNOWN");
     }
 
     private String buildAction(
@@ -108,6 +129,36 @@ public class AuditLogInterceptor implements HandlerInterceptor {
 
         if (path.startsWith("/api/customers")) {
             return "LOOKUP_CUSTOMER";
+        }
+
+        // Customer-flow tokens (recorded since audit coverage was widened
+        // beyond officers). Kept semantic so the SOC audit page can map them
+        // to human-readable bilingual labels.
+        if ("POST".equalsIgnoreCase(method)
+                && path.equals("/api/analyze")) {
+            return "ANALYZE_TEXT";
+        }
+
+        if ("POST".equalsIgnoreCase(method)
+                && path.equals("/api/freeze")) {
+            return "REQUEST_FREEZE";
+        }
+
+        if ("POST".equalsIgnoreCase(method)
+                && path.equals("/api/transactions/analyze")) {
+            return "ANALYZE_TRANSACTION";
+        }
+
+        if ("POST".equalsIgnoreCase(method)
+                && path.endsWith("/confirm")
+                && path.startsWith("/api/transactions")) {
+            return "CONFIRM_TRANSACTION";
+        }
+
+        if ("POST".equalsIgnoreCase(method)
+                && path.endsWith("/cancel")
+                && path.startsWith("/api/transactions")) {
+            return "CANCEL_TRANSACTION";
         }
 
         if (path.startsWith("/api/config")) {

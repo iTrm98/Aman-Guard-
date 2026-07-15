@@ -15,6 +15,9 @@ public class AuditLog {
     @Column(name = "officer_id", nullable = false, length = 50)
     private String officerId;
 
+    @Column(name = "user_role", nullable = false, length = 20)
+    private String userRole;
+
     @Column(nullable = false, length = 120)
     private String action;
 
@@ -44,6 +47,7 @@ public class AuditLog {
 
     public AuditLog(
             String officerId,
+            String userRole,
             String action,
             String httpMethod,
             String path,
@@ -54,6 +58,7 @@ public class AuditLog {
             LocalDateTime createdAt
     ) {
         this.officerId = officerId;
+        this.userRole = userRole;
         this.action = action;
         this.httpMethod = httpMethod;
         this.path = path;
@@ -70,6 +75,10 @@ public class AuditLog {
 
     public String getOfficerId() {
         return officerId;
+    }
+
+    public String getUserRole() {
+        return userRole;
     }
 
     public String getAction() {

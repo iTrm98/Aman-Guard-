@@ -1,0 +1,5 @@
+# Never bake the OpenAI key or debug artifacts into the image.
+.env
+debug_response.json
+run_api_tests.py
+__pycache__

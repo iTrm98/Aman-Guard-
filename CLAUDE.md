@@ -50,6 +50,8 @@ src/
                         account / emergency-freeze). Single source of truth for the Sidebar sub-nav, the
                         Topbar page title, and SearchDropdown results. Page components themselves use the
                         page_* translation keys via t(), not this file.
+    bankPages.js        BANK_PAGES — id, emoji icon, bilingual label for the 3 SOC pages (dashboard /
+                        cases / audit-log). Feeds the Sidebar officer sub-nav; BankView routes on the id.
 
   hooks/
     useRelativeTime.js  useRelativeTime(isoString) → localized "5 minutes ago" string, re-computed every 60s
@@ -85,11 +87,12 @@ src/
                               Tailwind md: classes): desktop collapses to a 60px icon rail when isOpen is
                               false; mobile renders a fixed overlay drawer (80vw/max 280px) that slides
                               off-screen (RTL-aware translateX) when closed. The mobile backdrop lives in App.jsx.
-                              For CUSTOMER role it renders the portal sub-nav under the main nav item (one row
-                              per CUSTOMER_PAGES entry): expanded → emoji + label (13px, ≥44px tap height on
-                              mobile), collapsed desktop rail → icon-only with tooltip; the active page row has
-                              a var(--gold) background. Rows call onCustomerPageChange — App.jsx's shared
-                              navigate handler, which also closes the mobile drawer
+                              Renders a per-role sub-nav under the main nav item from one generalized block:
+                              CUSTOMER → CUSTOMER_PAGES (customerPage/onCustomerPageChange), BANK_OFFICER →
+                              BANK_PAGES (bankPage/onBankPageChange). Expanded → emoji + label rows (13px,
+                              ≥44px tap height on mobile), collapsed desktop rail → icon-only with tooltip;
+                              the active page row has a var(--gold) background. Rows call the App.jsx navigate
+                              handlers, which also close the mobile drawer
       Topbar.jsx              Header: title, search, language toggle, theme toggle, bell. The search input
                               is a controlled component: value={searchQuery} + onChange → onSearch(raw value),
                               both props from App.jsx (AppShell). Topbar never debounces or filters itself.
@@ -171,8 +174,23 @@ src/
                                warning card + what-gets-stopped list + large btn-danger freeze button
                                (≥56px on mobile) calling onFreezeRequest() with NO analysis result (see the
                                case-less freeze caveat in What's NOT Done) + contact-the-bank fallback row
-    BankView.jsx        Assembles StatsCards + CasesTable + CaseDetailPanel; error banner + retry if the fetch
-                        fails; handles XLSX export. Forwards its searchQuery prop to CasesTable as externalSearch
+    BankView.jsx        Routes on the bankPage prop: "dashboard" → header + StatsCards + CasesTable
+                        (byte-identical to before), "cases" → same minus StatsCards, "audit-log" →
+                        AuditLogPage (CaseDetailPanel stays mounted in that branch so a notification
+                        click-through opens its case from any SOC page). Error banner + retry; XLSX case
+                        export. Forwards searchQuery → CasesTable externalSearch (dashboard/cases only)
+    bank/
+      AuditLogPage.jsx  SOC audit-trail viewer (officer-only endpoint): filter card (from/to date inputs
+                        defaulting to the last 7 Saudi calendar days, action-category dropdown mapped to
+                        contains-filter tokens, 400ms-debounced user-id/IP search), server-paged table
+                        (20 rows desktop / 10 mobile; IP column hidden on mobile), ACTION_LABELS bilingual
+                        token map (displayAction falls back to the raw "METHOD /path" string or a
+                        Title-cased token — never a raw unknown token), Saudi-time timestamps via
+                        ar-SA-u-ca-gregory / en-GB + Asia/Riyadh (bare "ar-SA" renders Hijri — never use it)
+                        with useRelativeTime hover tooltips, colored HTTP-status chips, and a two-sheet
+                        XLSX export (fetches up to 5000 filtered rows; data sheet + summary sheet with
+                        totals / report period / top action / freeze + analysis counts; RTL workbook view
+                        in Arabic; SheetJS CE cannot write cell fills, so no colored headers)
 
   test/
     setup.js                @testing-library/jest-dom setup
@@ -190,7 +208,9 @@ src/
                       customerPage (default "overview"; resets on every login because AppShell remounts when
                       auth flips) + the shared handleCustomerNavigate(pageId) — sets the page AND closes the
                       mobile drawer; passed to Sidebar (onCustomerPageChange), Topbar (onNavigate, for
-                      SearchDropdown) and CustomerView (onNavigate) — the topbar search state (searchQuery
+                      SearchDropdown) and CustomerView (onNavigate) — bankPage (default "dashboard") +
+                      handleBankNavigate with the same drawer-closing behavior (→ Sidebar onBankPageChange +
+                      BankView bankPage) — the topbar search state (searchQuery
                       raw → Topbar; debouncedSearch, a 300ms setTimeout copy → BankView only) + the freeze
                       flow (executeFreeze catches API failures → freeze_failed_title danger modal), renders
                       Sidebar+Topbar+views + the mobile sidebar backdrop
@@ -250,8 +270,19 @@ backend/
                                     current password-login frontend.
       analytics/                    GET /api/analytics/* — SOC chart data (fraud trends, risk breakdown,
                                     top patterns, amounts saved). Not yet consumed by the frontend.
-      audit/                        AuditLogInterceptor persists a request audit trail;
-                                    GET /api/audit-logs (bank officer only). No frontend consumer yet.
+      audit/                        AuditLogInterceptor persists the audit trail: ALL bank-officer requests
+                                    (unchanged behavior) + customers' non-GET requests (their GETs are
+                                    skipped so 60s notification polling doesn't flood the table), with
+                                    semantic action tokens (VIEW_CASES, CREATE_CASE, ANALYZE_TEXT,
+                                    REQUEST_FREEZE, ANALYZE/CONFIRM/CANCEL_TRANSACTION, ...) and a user_role
+                                    column (V6). /api/auth/* is never audited → no LOGIN/LOGOUT rows exist.
+                                    GET /api/audit-logs (officer-only) is paged + filterable:
+                                    ?page&size&from&to (ISO dates read as Saudi calendar days) &action
+                                    (contains) &search (user id or IP) → { content, totalElements,
+                                    totalPages, number }; rows carry userId, userRole, action,
+                                    entityType/entityId (derived from numeric path segments — /cases/active
+                                    is NOT an entity), ipAddress, httpStatus, createdAt (ISO-8601 at +03:00).
+                                    Consumed by views/bank/AuditLogPage.
       integration/                  Stub controllers/DTOs for future bank integrations
                                     (/api/open-banking, /api/sms, /api/telephony, /api/merchant-registry).
       realtime/                     WebSocket config (/ws) + RealtimePublishService + test controller —
@@ -421,6 +452,7 @@ There is **no mock mode**. Every request carries the JWT Bearer token (see `clie
 | `confirmTransaction(id)` | POST | `/transactions/{id}/confirm` | PurchaseInterceptionOverlay |
 | `cancelTransaction(id)` | POST | `/transactions/{id}/cancel` | PurchaseInterceptionOverlay |
 | `getThresholds()` | GET | `/config/thresholds` | SettingsPanel (bank view only) |
+| `getAuditLogs(params)` | GET | `/audit-logs?page&size&from&to&action&search` | AuditLogPage (table + export) |
 
 ### Response shapes
 ```js
@@ -635,6 +667,26 @@ python phishingGPT.py    # → http://localhost:8000  (needs OPENAI_API_KEY in A
 
 The frontend expects the backend running at `VITE_API_BASE_URL` (default `http://localhost:8080/api`) — there's no mock fallback, so components will show their error/retry states if it's down. See `backend/README.md` for backend-specific setup (DB swap, AI engine integration point).
 
+### Docker (full stack)
+
+```bash
+docker compose up -d --build
+# Frontend  → http://localhost:3000  (5173 stays free for npm run dev; CORS already allows :3000)
+# Backend   → http://localhost:8080/api
+# MySQL     → host port 3307 (containers use mysql:3306; 3307 avoids a local MySQL clash)
+# AI engine → deliberately NOT published (keyless service; backend-only over the compose network)
+```
+
+- `Dockerfile` (root) + `nginx.conf` — frontend: node:22-alpine build → nginx:alpine serve. `VITE_API_BASE_URL`
+  is a **build ARG** (baked into the bundle, must be browser-reachable) — set in docker-compose.yml, not at runtime.
+- `backend/Dockerfile` — maven:3.9-temurin-17 build → temurin-17-jre-alpine. Deliberately uses the maven image,
+  NOT `./mvnw` (Windows checkouts can break the wrapper via CRLF/exec-bit). All config via env vars:
+  `SPRING_DATASOURCE_URL/USERNAME/PASSWORD`, `AI_ENGINE_URL=http://ai-engine:8000`, optional `AMANGUARD_JWT_SECRET`.
+- `AI/Dockerfile` — python:3.12-slim + `AI/requirements.txt`; starts `uvicorn phishingGPT:app --host 0.0.0.0`
+  because the script's own `__main__` binds 127.0.0.1 (unreachable between containers). `AI/.dockerignore`
+  keeps `.env` (the OpenAI key) out of the image; compose passes `OPENAI_API_KEY` from the shell or root `.env`.
+- MySQL 8.4 with utf8mb4 + healthcheck; the backend waits on `service_healthy` so Flyway runs after the DB is up.
+
 ---
 
 ## Current State
@@ -647,7 +699,8 @@ What genuinely works end-to-end right now (frontend ↔ backend), what exists on
 - **Per-endpoint rate limiting** — Bucket4j filter (analyze 30/min, auth/login 5/min/IP, transactions/analyze 20/min, freeze 10/min, else 100/min); 429 surfaces inline (`rate_limit_exceeded`) in ScamChecker + PurchaseCheckout, not a modal
 - **Role-based access** — a customer only ever sees the portal and an officer only the SOC dashboard (Sidebar renders one nav item; App.jsx derives the view from role so it can't be switched), enforced again in SecurityConfig; notifications are scoped per user
 - Full customer portal, now **multi-page** (overview / call verify / message scan / purchase protection / my account / emergency freeze) — sidebar sub-nav, topbar search dropdown, and overview quick actions all drive the same customerPage state. Features unchanged: one-button call verify (GET /api/call-status), fraud text analysis (POST /api/analyze) + risk report, purchase simulation with allow / suspend (interception overlay) / block gating; plus the new account-detail and standalone emergency-freeze pages
-- Full bank SOC dashboard: live stats with trend deltas, sortable/searchable case table with relative timestamps, case detail drawer with freeze / escalate / dismiss / edit, manual case entry with national-id autofill, XLSX export
+- Full bank SOC dashboard, now with a sidebar sub-nav (dashboard / cases / audit log via bankPage state): live stats with trend deltas, sortable/searchable case table with relative timestamps, case detail drawer with freeze / escalate / dismiss / edit, manual case entry with national-id autofill, XLSX export
+- SOC audit log page: server-paged + filterable audit trail (Saudi-day date range, action category, user-id/IP search), Saudi-time timestamps with relative-time tooltips, and a two-sheet XLSX export (data + summary, RTL-aware workbook)
 - Topbar global search (frontend-only): bank view — debounced 300ms in App.jsx, filters the SOC cases table (overrides its local search input); customer view — SearchDropdown over CUSTOMER_PAGES keywords that navigates between portal pages
 - Freeze request → bank-approval workflow (customer freezes are PENDING until staff approve; staff freezes approve immediately)
 - Notifications: backend-fetched, 60s polling, mark read / mark all read, click-through to the linked case
@@ -656,7 +709,6 @@ What genuinely works end-to-end right now (frontend ↔ backend), what exists on
 
 **Backend-only (implemented server-side, no frontend consumer yet):**
 - **Analytics** — GET /api/analytics/* chart data endpoints
-- **Audit trail** — request interceptor + GET /api/audit-logs
 - **WebSocket realtime** — `/ws` config + publish service (INT-002 groundwork); the bank dashboard still simulates live updates by prop injection (`App.jsx` → `BankView`'s `injectedCase`) + polling
 - **Integration stubs** — open-banking / SMS / telephony / merchant-registry placeholder endpoints
 - **Interruption-question scoring** — POST /api/verifications/evaluate exists; `RiskReport`'s 3 checkboxes are still local UI state only
@@ -669,6 +721,7 @@ What genuinely works end-to-end right now (frontend ↔ backend), what exists on
 - **Frontend WebSockets** — backend `/ws` exists; the frontend still relies on polling + prop injection.
 - **Responsive / mobile layout** — Core views are now responsive below 768px via an `isMobile` prop (computed once in `App.jsx`, threaded down — new mobile work uses inline `isMobile ? …` conditionals, not Tailwind responsive classes): the sidebar collapses to an icon rail (desktop) / slides in as a drawer (mobile), the cases table drops the pattern + account columns, stats/forms/interception overlay reflow, and slide-in panels go full-width (`.panel-drawer` media query). Desktop (≥768px) is unchanged. Not every micro-layout is tuned for the smallest phones.
 - **Case-less emergency freeze** — POST /api/freeze requires an existing fraud case (`validateFraudCase` rejects a null caseId), so the standalone button on EmergencyFreezePage currently gets a backend error, surfaced via the freeze_failed_title modal. Freezes from RiskReport / purchase-stop work because those flows create a case first. Needs a nullable-caseId freeze path server-side.
+- **Login/logout audit rows** — the audit interceptor skips /api/auth/* (a login request has no authenticated principal to attribute), so the audit page's "Login" filter and the LOGIN/LOGOUT labels have no matching data until auth events are recorded from the auth service itself.
 - **Pagination** — Cases table shows the 20 most recent cases with no pagination.
 
 ---

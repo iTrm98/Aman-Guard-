@@ -5,6 +5,7 @@ import StatsCards      from "../components/bank/StatsCards";
 import CasesTable      from "../components/bank/CasesTable";
 import CaseDetailPanel from "../components/bank/CaseDetailPanel";
 import AddCasePanel    from "../components/bank/AddCasePanel";
+import AuditLogPage    from "./bank/AuditLogPage";
 import { getActiveCases, getCaseById } from "../api/fraudService";
 import { apiErrorMessage } from "../api/client";
 import { displayFraudPattern } from "../i18n/fraudPatterns";
@@ -20,7 +21,7 @@ function formatExportTimestamp(isoString) {
   });
 }
 
-export default function BankView({ isMobile, searchQuery, injectedCase, caseToOpen, onCaseOpened }) {
+export default function BankView({ isMobile, bankPage = "dashboard", searchQuery, injectedCase, caseToOpen, onCaseOpened }) {
   const { t, lang, showModal, refreshNotifications } = useApp();
   const [stats,       setStats]       = useState(null);
   const [cases,       setCases]       = useState([]);
@@ -120,6 +121,24 @@ export default function BankView({ isMobile, searchQuery, injectedCase, caseToOp
     });
   }
 
+  // Audit log gets its own full page; the case drawer stays mounted so a
+  // notification click-through still opens its case from any SOC page.
+  if (bankPage === "audit-log") {
+    return (
+      <>
+        {selectedCase && (
+          <CaseDetailPanel
+            key={selectedCase.caseId ?? selectedCase.id}
+            caseData={selectedCase}
+            onClose={() => setSelectedCase(null)}
+            onAction={handleCaseAction}
+          />
+        )}
+        <AuditLogPage isMobile={isMobile} />
+      </>
+    );
+  }
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }} className="animate-fade-in">
       {selectedCase && (
@@ -171,7 +190,7 @@ export default function BankView({ isMobile, searchQuery, injectedCase, caseToOp
         </div>
       )}
 
-      <StatsCards stats={stats} />
+      {bankPage !== "cases" && <StatsCards stats={stats} />}
       <CasesTable
         isMobile={isMobile}
         cases={cases}

@@ -27,6 +27,8 @@ function AppShell({ isMobile }) {
   // Active customer portal page. AppShell remounts on every login (App swaps
   // to LoginView while signed out), so this always starts back at "overview".
   const [customerPage,  setCustomerPage]  = useState("overview");
+  // Active SOC page for bank officers (dashboard / cases / audit-log).
+  const [bankPage,      setBankPage]      = useState("dashboard");
   // Topbar search: the raw value drives the input; views only see a
   // 300ms-debounced copy so filtering doesn't run on every keystroke.
   const [searchQuery,     setSearchQuery]     = useState("");
@@ -41,6 +43,11 @@ function AppShell({ isMobile }) {
   // the sidebar drawer so one tap both navigates and dismisses the overlay.
   function handleCustomerNavigate(pageId) {
     setCustomerPage(pageId);
+    if (isMobile) setSidebarOpen(false);
+  }
+
+  function handleBankNavigate(pageId) {
+    setBankPage(pageId);
     if (isMobile) setSidebarOpen(false);
   }
 
@@ -139,6 +146,8 @@ function AppShell({ isMobile }) {
         onClose={() => setSidebarOpen(false)}
         customerPage={customerPage}
         onCustomerPageChange={handleCustomerNavigate}
+        bankPage={bankPage}
+        onBankPageChange={handleBankNavigate}
       />
 
       <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, overflow:"hidden" }}>
@@ -164,6 +173,7 @@ function AppShell({ isMobile }) {
                 />
               : <BankView
                   isMobile={isMobile}
+                  bankPage={bankPage}
                   searchQuery={debouncedSearch}
                   injectedCase={frozenCase}
                   caseToOpen={caseToOpen}

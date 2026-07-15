@@ -240,3 +240,14 @@ export async function cancelTransaction(transactionId) {
 export async function getThresholds() {
   return apiClient.get("/config/thresholds");
 }
+
+/**
+ * GET /audit-logs — paged, filterable audit trail (bank officers only).
+ * All params optional: page, size, from/to (ISO dates, Saudi calendar days),
+ * action (contains-filter on the stored action token), search (user id or IP).
+ * Response: { content: [{ id, userId, userRole, action, entityType, entityId,
+ *             ipAddress, httpStatus, createdAt }], totalElements, totalPages, number }
+ */
+export async function getAuditLogs(params = {}) {
+  return apiClient.get("/audit-logs", { params });
+}

@@ -1,10 +1,11 @@
 import { ShieldCheck, LayoutDashboard, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useApp } from "../../context/useApp";
 import { CUSTOMER_PAGES } from "../../data/customerPages";
+import { BANK_PAGES } from "../../data/bankPages";
 
 const ROLE_VIEW = { CUSTOMER: "customer", BANK_OFFICER: "bank" };
 
-export default function Sidebar({ view, onSwitchView, isOpen, isMobile, onClose, customerPage, onCustomerPageChange }) {
+export default function Sidebar({ view, onSwitchView, isOpen, isMobile, onClose, customerPage, onCustomerPageChange, bankPage, onBankPageChange }) {
   const { t, lang, unreadCount, openPanel, showModal, currentUser, logout } = useApp();
   const displayName = lang === "en" ? currentUser.nameEn : currentUser.name;
   const rtl = lang === "ar";
@@ -24,6 +25,14 @@ export default function Sidebar({ view, onSwitchView, isOpen, isMobile, onClose,
   // Desktop icon-rail: the sidebar stays in flow but collapses to icons only.
   // Mobile never uses the rail — it's either the full drawer or off-screen.
   const collapsed = !isMobile && !isOpen;
+
+  // Per-role sub-navigation under the main nav item (null = no sub-nav).
+  const subNav =
+    currentUser.role === "CUSTOMER"
+      ? { pages: CUSTOMER_PAGES, activeId: customerPage, onChange: onCustomerPageChange }
+      : currentUser.role === "BANK_OFFICER"
+        ? { pages: BANK_PAGES, activeId: bankPage, onChange: onBankPageChange }
+        : null;
 
   const ChevronActive = lang === "ar" ? ChevronLeft : ChevronRight;
 
@@ -123,18 +132,18 @@ export default function Sidebar({ view, onSwitchView, isOpen, isMobile, onClose,
           </button>
         ))}
 
-        {/* Customer portal sub-navigation — one entry per portal page. The
-            navigate handler (App.jsx) also closes the mobile drawer. Collapsed
-            desktop rail shows icon-only with a tooltip. */}
-        {currentUser.role === "CUSTOMER" && (
+        {/* Role sub-navigation — one entry per portal/SOC page. The navigate
+            handler (App.jsx) also closes the mobile drawer. Collapsed desktop
+            rail shows icon-only with a tooltip. */}
+        {subNav && (
           <div style={{ marginTop:4, display:"flex", flexDirection:"column", gap:2 }}>
-            {CUSTOMER_PAGES.map((p) => {
-              const active = customerPage === p.id;
+            {subNav.pages.map((p) => {
+              const active = subNav.activeId === p.id;
               const label  = lang === "en" ? p.labelEn : p.labelAr;
               return (
                 <button
                   key={p.id}
-                  onClick={() => onCustomerPageChange?.(p.id)}
+                  onClick={() => subNav.onChange?.(p.id)}
                   title={collapsed ? label : undefined}
                   className="sidebar-item"
                   style={{

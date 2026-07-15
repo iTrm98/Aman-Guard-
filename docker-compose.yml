@@ -1,0 +1,73 @@
+# AmanGuard full stack.
+#
+#   docker compose up -d --build
+#
+#   Frontend   → http://localhost:3000   (5173 stays free for `npm run dev`;
+#                the backend's CORS allowlist already covers localhost:3000)
+#   Backend    → http://localhost:8080/api
+#   MySQL      → localhost:3307 (host-side; 3307 avoids clashing with a local
+#                MySQL on 3306 — containers talk to `mysql:3306` internally)
+#   AI engine  → NOT published on purpose: it is keyless/unauthenticated, so
+#                only the backend reaches it over the compose network.
+#
+# OPENAI_API_KEY is read from the shell or from ./.env (compose loads it
+# automatically). Without it the stack still works — /api/analyze falls back
+# to rule-based scoring.
+
+services:
+  mysql:
+    image: mysql:8.4
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-AmanGuardRoot@12345}
+      MYSQL_DATABASE: amanguard_db
+      MYSQL_USER: amanguard_user
+      MYSQL_PASSWORD: AmanGuard@12345
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  ai-engine:
+    build: ./AI
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+  backend:
+    build: ./backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ai-engine:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/amanguard_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: amanguard_user
+      SPRING_DATASOURCE_PASSWORD: AmanGuard@12345
+      AI_ENGINE_URL: http://ai-engine:8000
+      # Override the demo JWT secret for anything beyond local demos:
+      # AMANGUARD_JWT_SECRET: ${AMANGUARD_JWT_SECRET}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      args:
+        # Baked into the bundle at build time — must be reachable FROM THE
+        # BROWSER, hence localhost:8080 (the backend's published port).
+        VITE_API_BASE_URL: http://localhost:8080/api
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  mysql_data:

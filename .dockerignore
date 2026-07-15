@@ -1,0 +1,13 @@
+# Frontend image build context (repo root) — keep it lean and secret-free.
+node_modules
+dist
+.git
+.env
+.env.*
+!.env.example
+backend
+AI
+*.md
+.claude
+docker-compose.yml
+Dockerfile
