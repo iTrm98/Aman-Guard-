@@ -6,7 +6,7 @@ import {
   markNotificationRead as apiMarkNotificationRead,
   logout as apiLogout,
 } from "../api/fraudService";
-import { TOKEN_KEY, USER_KEY } from "../api/client";
+import { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from "../api/client";
 
 const NOTIFICATIONS_POLL_MS = 60000;
 
@@ -68,6 +68,21 @@ export function AppProvider({ children }) {
     return () => { cancelled = true; clearInterval(interval); };
   }, [isAuthenticated, refreshNotifications]);
 
+  // When a token refresh fails (refresh token missing/expired/invalid), the API
+  // client clears localStorage and fires "amanguard:unauthorized". Mirror that
+  // into React state so App swaps back to the login screen. A *successful*
+  // refresh never dispatches this, so a live session is never interrupted.
+  useEffect(() => {
+    function onUnauthorized() {
+      setIsAuthenticated(false);
+      setCurrentUser(DEFAULT_USER);
+      setNotifications([]);
+      setNotificationsLoading(true);
+    }
+    window.addEventListener("amanguard:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("amanguard:unauthorized", onUnauthorized);
+  }, []);
+
   // Apply theme to root element
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -119,6 +134,7 @@ export function AppProvider({ children }) {
       role: loginResponse.role,
     };
     localStorage.setItem(TOKEN_KEY, loginResponse.token);
+    localStorage.setItem(REFRESH_TOKEN_KEY, loginResponse.refreshToken);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     setCurrentUser(user);
     setIsAuthenticated(true);

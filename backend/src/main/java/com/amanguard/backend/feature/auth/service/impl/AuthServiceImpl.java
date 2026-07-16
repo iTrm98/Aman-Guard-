@@ -17,6 +17,7 @@ import com.amanguard.backend.feature.auth.service.AuthService;
 import com.amanguard.backend.feature.auth.service.JwtClaims;
 import com.amanguard.backend.feature.auth.service.JwtService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -124,14 +125,16 @@ public class AuthServiceImpl implements AuthService {
                 request.refreshToken()
         );
 
+        // Invalid refresh token cases below all return 401 (BadCredentialsException
+        // → GlobalExceptionHandler) so the frontend treats them as a dead session.
         if (!"REFRESH".equals(claims.tokenType())) {
-            throw new BadRequestException("نوع التوكن غير صالح للتحديث");
+            throw new BadCredentialsException("نوع التوكن غير صالح للتحديث");
         }
 
         AuthUser user = authUserRepository
                 .findByNationalId(claims.subject())
                 .orElseThrow(() ->
-                        new BadRequestException("المستخدم غير موجود")
+                        new BadCredentialsException("المستخدم غير موجود")
                 );
 
         String incomingRefreshTokenHash = sha256Hex(
@@ -140,7 +143,7 @@ public class AuthServiceImpl implements AuthService {
 
         if (user.getRefreshTokenHash() == null
                 || !user.getRefreshTokenHash().equals(incomingRefreshTokenHash)) {
-            throw new BadRequestException("Refresh token غير صالح");
+            throw new BadCredentialsException("Refresh token غير صالح");
         }
 
         return issueTokens(user);

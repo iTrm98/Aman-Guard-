@@ -143,6 +143,10 @@ public class JwtServiceImpl implements JwtService {
             payload.put("iss", issuer);
             payload.put("sub", user.getNationalId());
             payload.put("role", user.getRole().name());
+            payload.put("name", user.getDisplayName());
+            payload.put("nameEn", user.getDisplayNameEn() != null
+                    ? user.getDisplayNameEn()
+                    : user.getDisplayName());
             payload.put("tokenType", tokenType);
             payload.put("jti", UUID.randomUUID().toString());
             payload.put("iat", now.getEpochSecond());

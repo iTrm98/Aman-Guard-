@@ -21,7 +21,7 @@
 // failures throw an ApiError and the calling component is responsible for
 // its own loading/error UI.
 
-import { apiClient, ApiError, BASE_URL, TOKEN_KEY, USER_KEY } from "./client";
+import { apiClient, ApiError, BASE_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from "./client";
 
 /**
  * POST /auth/login — exchange national id + password for a JWT session.
@@ -57,6 +57,7 @@ export async function logout() {
     await apiClient.post("/auth/logout", {});
   } finally {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   }
 }

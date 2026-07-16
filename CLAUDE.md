@@ -38,9 +38,15 @@ The app has two views that share the same shell:
 src/
   api/
     client.js           Base HTTP client (fetch wrapper, ApiError class, query params). Attaches the
-                        stored JWT (localStorage "amanguard_token") as a Bearer header on every request;
-                        a 401 on a non-/auth endpoint clears the session + reloads → login screen.
-                        Exports BASE_URL, TOKEN_KEY, USER_KEY.
+                        stored JWT access token (localStorage "amanguard_token") as a Bearer header on
+                        every request. On a 401 on a non-/auth endpoint it transparently refreshes: it
+                        POSTs the stored refresh token ("amanguard_refresh_token") to /auth/refresh,
+                        stores the new token(s), and replays the original request — invisible to the
+                        user, no reload. A single-flight guard (isRefreshing + failedQueue/processQueue)
+                        makes concurrent 401s share ONE refresh call and replay once it resolves. Only if
+                        the refresh itself fails (refresh token missing/expired/invalid) does it clear all
+                        three storage keys and dispatch a window "amanguard:unauthorized" event → AppContext
+                        drops to the login screen. Exports BASE_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY.
     fraudService.js     Service functions — every one calls the real backend directly, no mock fallback.
                         Also holds login(nationalId, password) and logout() (POST /auth/login, /auth/logout).
 
@@ -161,7 +167,9 @@ src/
     customer/           One dedicated page per portal feature. Every page starts with PageHeader and has
                         overflowX:"hidden" on its root; new-page grids use the customer-page-grid-2/3 classes:
       OverviewPage.jsx         AccountCard + 3 quick-action cards (→ onNavigate to the feature pages) +
-                               the last 3 UNREAD notifications from context (hook-per-row subcomponent)
+                               a browser-extension card (ExtensionStatus pill + download link + install
+                               steps) in the same grid + the last 3 UNREAD notifications from context
+                               (hook-per-row subcomponent)
       CallVerifyPage.jsx       CallVerification centered at max-width 600px (100% on mobile)
       ScamCheckPage.jsx        ScamChecker + RiskReport below it; owns the analysisResult state and the
                                required-field modal that used to live in CustomerView
@@ -349,7 +357,7 @@ const {
 
 **Never use local panel state** — always go through `openPanel` / `closePanel`.
 
-**`currentUser` comes from the JWT login.** `completeLogin` writes `{ name, nameEn, role }` to localStorage (`amanguard_user`) and the access token to `amanguard_token`; `AppProvider` re-reads both on mount so a reload restores the session. `role` is the raw backend value (`"CUSTOMER"` / `"BANK_OFFICER"`) and drives the default view in `App.jsx`. Everything that shows the logged-in identity (Sidebar chip, freeze-flow customer name) reads from `currentUser`.
+**`currentUser` comes from the JWT login.** `completeLogin` writes `{ name, nameEn, role }` to localStorage (`amanguard_user`), the access token to `amanguard_token`, and the refresh token to `amanguard_refresh_token`; `AppProvider` re-reads them on mount so a reload restores the session. `AppContext` also listens for the `amanguard:unauthorized` window event (dispatched by `client.js` when a refresh fails) and resets auth state back to the login screen. `role` is the raw backend value (`"CUSTOMER"` / `"BANK_OFFICER"`) and drives the default view in `App.jsx`. Everything that shows the logged-in identity (Sidebar chip, freeze-flow customer name) reads from `currentUser`.
 
 ---
 
@@ -427,12 +435,18 @@ The `pulseSoft` keyframe animation (`animation: pulseSoft 1.5s ease-in-out infin
 
 There is **no mock mode**. Every function in `fraudService.js` calls the real backend and lets errors propagate as `ApiError` (thrown from `client.js`, carrying `.message` from the backend's JSON error body and `.status`). Components own their own loading/error/retry state — see `AccountCard.jsx` and `BankView.jsx` for the pattern. On a **429** the rate-limit body has `messageEn/messageAr` (not `message`); `client.js` falls back to those, and callers that check `err.status === 429` show the localized `rate_limit_exceeded` string inline (see ScamChecker + PurchaseCheckout).
 
-There is **no mock mode**. Every request carries the JWT Bearer token (see `client.js`); an expired/invalid session (401 outside `/auth/*`) clears storage and reloads to the login screen.
+There is **no mock mode**. Every request carries the JWT **access** token as a Bearer header (see `client.js`). When the 30-minute access token expires the next request 401s; the client then **transparently refreshes the session** (POST `/auth/refresh` with the stored refresh token) and replays the original request, so the user is never interrupted. Refreshes are single-flighted — if several requests 401 at once, only the first calls `/auth/refresh` and the rest queue (`failedQueue`) and replay with the new token. The login screen appears **only** when the refresh itself fails (refresh token missing/expired/invalid): the client clears all three localStorage keys (`amanguard_token`, `amanguard_refresh_token`, `amanguard_user`) and dispatches a window `amanguard:unauthorized` event, which `AppContext` listens for to reset auth state → `App` renders `<LoginView>`.
+
+### Token storage & refresh flow
+- **Both tokens live in localStorage.** `completeLogin` (AppContext) stores `amanguard_token` (access) + `amanguard_refresh_token` (refresh) + `amanguard_user`; `logout`/`fraudService.logout` and the refresh-failure path clear all three. `client.js` exports `REFRESH_TOKEN_KEY = "amanguard_refresh_token"`.
+- **The refresh is fully invisible** — no loading state, no modal, no toast. `session_expired` / `session_refreshed` translation keys exist for optional UI but the current flow shows neither (the refresh is silent; a hard failure just swaps to the login screen).
+- **Backend `POST /api/auth/refresh`** takes `{ refreshToken }` and returns the full `LoginResponse` (`{ token, refreshToken, role, userId, name, nameEn }` — a **rotated** refresh token each call). An expired/invalid/mismatched refresh token returns **HTTP 401** (`BadCredentialsException` → `GlobalExceptionHandler`), which the client treats as a dead session.
 
 ### Backend endpoints
 | Function | Method | Endpoint | Used by |
 |---|---|---|---|
 | `login(nationalId, password)` | POST | `/auth/login` | LoginView (raw fetch, bypasses the 401 handler) |
+| _(refresh)_ | POST | `/auth/refresh` | `client.js` only — automatic on 401, never called from a component |
 | `logout()` | POST | `/auth/logout` | AppContext logout |
 | `getAccountInfo()` | GET | `/account/me` | AccountCard |
 | `checkCallStatus()` | GET | `/call-status` | CallVerification |
@@ -689,13 +703,110 @@ docker compose up -d --build
 
 ---
 
+## Browser Extension Integration
+
+The Chrome extension in `extention/src/` (MV3: `manifest.json`, `background.js` service worker,
+`content.js`, `overlay.css`, `popup.html` + `popup.js`) intercepts card-payment forms on any site,
+scores the destination via its own Python engine (`http://127.0.0.1:8000/analyze-url`) plus
+client-side rules, and shows a full-screen Shadow-DOM warning overlay branded as AmanGuard. It is
+wired to the web app as follows. **`extention/**` is in the ESLint ignore list — those files are
+not linted; keep it that way.** There is **no hardcoded extension id** anywhere — detection and
+token hand-off both go through a `window.postMessage` bridge.
+
+**postMessage bridge (no extension id) — automatic on login, mount, and refresh.** Token hand-off is
+fully automatic, with no user action: the web app broadcasts
+`window.postMessage({ source:"AMANGUARD_WEB", action:"SET_AMANGUARD_TOKEN", token, user }, window.location.origin)`
+at three points, so the extension connects within ~1s of the token existing:
+- **login + page refresh** — `src/App.jsx#sendTokenToExtension`, called from an effect that fires
+  whenever `isAuthenticated` becomes true (token-save lives in `AppContext.completeLogin`, so App
+  watches the auth flag rather than hooking the save; the effect also runs on mount, covering a
+  reload that restored a session);
+- **silent token refresh** — `src/api/client.js#refreshAccessToken` re-posts the same message right
+  after storing the refreshed access token, so the extension never falls out of sync.
+
+`user` is the cached `amanguard_user` JSON string (`{ name, nameEn, role }`). The extension's
+`content.js` runs in the page, listens for `message` events (same-origin only,
+`source==="AMANGUARD_WEB"`), and relays token **and user** to `background.js` as
+`STORE_TOKEN_FROM_PAGE` (only the background has `chrome.storage` access). `ExtensionStatus.jsx`
+does the install probe the same way: it posts `PING_EXTENSION`; the content script replies
+`window.postMessage({ source:"AMANGUARD_EXTENSION", action:"PONG" })`; no PONG within 1s →
+"not installed". `sendTokenToExtension` no longer guards on `window.chrome` — it always posts
+(postMessage never throws; if the extension isn't installed nothing listens), which is what makes
+auto-connect reliable. The JWT is passed straight through and **never logged**.
+`externally_connectable` is kept in the manifest for possible future direct messaging but is not
+required by this bridge.
+
+**Token storage + user (`background.js`).** `STORE_TOKEN_FROM_PAGE` calls `storeToken(token, user)`,
+storing `amanguard_token`, `amanguard_connected:true`, and `amanguard_user` (`{ name, nameEn, role }`
+JSON) in `chrome.storage.local`. It **prefers the `user` blob passed from the page** (the web app's
+cached `amanguard_user`); only if that's absent does it fall back to base64url-decoding the JWT
+payload (`decodeUserFromToken`, best-effort in try/catch — never logs). The backend JWT now includes
+`name`/`nameEn` claims (see `JwtServiceImpl`), so the decode fallback also yields the real name; the
+overlay footer and popup show the real name + role.
+
+**Detection rules (`background.js` `analyze_payment`).** After the Python engine's three checks
+(cross-domain form hijack, domain age, AI typosquatting) run three client-side rules on
+`actionUrl`: (4) typosquatting against a known-brand variant list → Critical; (5) suspicious TLD
+(`.ru .tk .xyz .pw .cc .top .work .click .link`) → at least High; (6) plain `http:` (non-localhost)
+payment page → at least High. Each pushes a bilingual reason (Arabic + English lines).
+
+**SOC reporting with report number.** After scoring, the handler saves `amanguard_last_scan`
+(`{ risk_level, domain, timestamp }`) for the popup, then for **High/Critical** awaits
+`reportToAmanGuard()` — a POST to `http://localhost:8080/api/transactions/analyze` (Bearer token,
+`{ merchantName, merchantUrl, amount:0, currency:"SAR", transactionType:"ONLINE_PURCHASE",
+source:"EXTENSION", riskLevel, reasons }`) that returns the backend's `reportNumber`. It fails
+silently (returns null, never blocks) when there's no token or the backend is down. The response to
+the content script is `{ risk_level, reasons, reportNumber }`.
+
+**Overlay (`content.js`).** `injectShadowUI` renders the branded modal (gradient header with the
+Aman**Guard** wordmark, connection dot, pulsing risk icon, an SVG risk-score gauge, bilingual
+title/message, reasons list, recommendation box, report-number line, and a footer with the logged-in
+user avatar/name). `updateShadowUI` maps risk level → score/color, fills the gauge, shows reasons
+(❌) + recommendation for High/Critical, shows the `reportNumber` when present, and reads
+`amanguard_user` / `amanguard_connected` from storage for the footer + connection line. Buttons:
+Cancel (stops the transaction), Proceed-at-own-risk (`triggerResumeAllFrames`), Full Analysis (opens
+`http://localhost:5173`), and Report (confirms the auto-report already sent to SOC). All existing
+iframe-broker / resume logic is unchanged.
+
+**Popup (`popup.html` + `popup.js`).** Toolbar popup (registered via manifest `action.default_popup`)
+showing connection status, protection status, the logged-in user (`amanguard_user`), and the last
+scan (`amanguard_last_scan`), with an "Open Portal" button (and an "SOC Dashboard" button for
+`BANK_OFFICER`). It reads only `chrome.storage.local` so it works whether or not the user is
+connected. Uses `chrome.tabs.create`, so the manifest adds the `tabs` permission.
+
+**Download from the app (`/extension-download` ZIP).** The portal serves the extension itself — no
+GitHub link. `OverviewPage.jsx`'s download button opens `public/extension/download.html` (a static
+bilingual install-instructions page) which `fetch`es **`GET /extension-download`** and saves it as
+`amanguard-extension.zip`. That endpoint is provided by the `amanguard-extension-download` Vite
+plugin in `vite.config.js`, which zips the canonical `extention/src/` (via `archiver`'s ESM
+`ZipArchive`) — **the single source of truth**; there are no per-file copies under `public/`. The
+plugin covers all run modes: a `configureServer` middleware for `npm run dev`, a
+`configurePreviewServer` middleware for `npm run preview`, and a `generateBundle` hook that emits the
+zip as the static file `extension-download` at the `dist/` root for `npm run build` (so a plain
+static host / nginx resolves `/extension-download` in production too). `vite.config.js` runs in Node,
+so `eslint.config.js` has a Node-globals override for it (for `Buffer`).
+
+**Enable / disable protection (postMessage bridge).** `ExtensionStatus.jsx` shows an enable/disable
+toggle below the status pill (only when `status === "connected"`) that posts
+`{ source:"AMANGUARD_WEB", action:"ENABLE_EXTENSION" | "DISABLE_EXTENSION" }`. `content.js` handles
+those in its window-message listener, flips an `isExtensionEnabled` flag, and persists
+`amanguard_enabled` to `chrome.storage.local`; it reads that key on load so the choice **survives
+page refreshes**. `freezeTransaction()` early-returns when disabled, so the extension is completely
+silent — no overlay, no interception, the payment passes through — and re-enabling restores
+protection immediately without reloading. `popup.js` reflects the state in the protection badge
+(green "Active" / red "Disabled"). (The portal toggle's own label is local UI state, defaulting to
+enabled on a fresh page load; the persisted extension behavior is the source of truth.)
+
+---
+
 ## Current State
 
 What genuinely works end-to-end right now (frontend ↔ backend), what exists on one side only, and what's missing.
 
 **Working end-to-end (when the backend endpoints are reachable):**
-- **Authentication** — national-id + password login (`LoginView` → POST /api/auth/login), JWT stored in localStorage and sent as a Bearer header on every request, 401 → auto-logout to the login screen, role-based default view (officer → bank, customer → portal), Sidebar sign-out. `currentUser` is populated from the login response (no longer a placeholder). Demo logins: customer `1234567890` / officer `0987654321`, both password `Password123!`.
+- **Authentication** — national-id + password login (`LoginView` → POST /api/auth/login), access + refresh JWTs stored in localStorage, access token sent as a Bearer header on every request. **Silent token refresh**: an expired access token (401) triggers an automatic, single-flighted POST /api/auth/refresh and request replay in `client.js` — invisible to the user; the login screen appears only when the refresh token itself is missing/expired/invalid (backend returns 401). Role-based default view (officer → bank, customer → portal), Sidebar sign-out. `currentUser` is populated from the login response (no longer a placeholder). Demo logins: customer `1234567890` / officer `0987654321`, both password `Password123!`.
 - **AI-first fraud analysis** — POST /api/analyze calls the Python AI engine and falls back to rule-based scoring if it's unreachable; `RiskReport` shows a gold "Analyzed by AI" / gray "Rule-based" chip from `analysisSource`
+- **Browser-extension integration** — a `window.postMessage` bridge (no hardcoded extension id) hands the web app's JWT to the Chrome extension on login and powers the portal's install-status card (`ExtensionStatus`, PING/PONG). The extension decodes the JWT for user info, runs extra client-side detection rules (typosquatting / suspicious-TLD / non-HTTPS), reports High/Critical payments to `/api/transactions/analyze` and surfaces the returned report number in a branded Shadow-DOM overlay (risk gauge, reasons, user footer), and ships a toolbar popup (connection + last scan + open-portal). The extension is downloadable straight from the portal as a ZIP (`GET /extension-download`, zipped from `extention/src` by a Vite plugin) and can be enabled/disabled from the portal via a postMessage toggle (persisted in `chrome.storage.local`). See "Browser Extension Integration" above
 - **Per-endpoint rate limiting** — Bucket4j filter (analyze 30/min, auth/login 5/min/IP, transactions/analyze 20/min, freeze 10/min, else 100/min); 429 surfaces inline (`rate_limit_exceeded`) in ScamChecker + PurchaseCheckout, not a modal
 - **Role-based access** — a customer only ever sees the portal and an officer only the SOC dashboard (Sidebar renders one nav item; App.jsx derives the view from role so it can't be switched), enforced again in SecurityConfig; notifications are scoped per user
 - Full customer portal, now **multi-page** (overview / call verify / message scan / purchase protection / my account / emergency freeze) — sidebar sub-nav, topbar search dropdown, and overview quick actions all drive the same customerPage state. Features unchanged: one-button call verify (GET /api/call-status), fraud text analysis (POST /api/analyze) + risk report, purchase simulation with allow / suspend (interception overlay) / block gating; plus the new account-detail and standalone emergency-freeze pages
@@ -715,7 +826,6 @@ What genuinely works end-to-end right now (frontend ↔ backend), what exists on
 
 ## What's NOT Done Yet ❌
 
-- **Token refresh in the UI** — the frontend does not call POST /api/auth/refresh; when the 30-minute access token expires, the next request 401s and drops the user to the login screen (the refresh token is issued and stored but unused client-side).
 - **Registration / account management** — login only; no signup, password change, or user admin. Demo users are seeded by `AuthDataInitializer`.
 - **AI on the purchase path** — `/api/analyze` now calls the Python AI engine (with automatic rule-based fallback), but `/api/transactions/analyze` is still deterministic rule-based scoring (merchant whitelist + URL keyword lists in `backend/src/main/resources/merchants.json` / `fraud_keywords.json`) and is not yet wired to the engine. The engine itself (`AI/phishingGPT.py`) is OpenAI-backed, not a locally trained model, and emits Arabic-only output (English findings mirror the Arabic until the engine is bilingual).
 - **Frontend WebSockets** — backend `/ws` exists; the frontend still relies on polling + prop injection.

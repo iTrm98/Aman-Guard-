@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>تحميل إضافة AmanGuard</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0d1b2a; color: #e0eaf5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .card { background: #111b27; border: 1px solid #1e2f42; border-radius: 20px; padding: 40px; max-width: 500px; width: 90%; text-align: center; }
+    .logo { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+    .logo span { color: #9784e2; }
+    .subtitle { color: #4a6070; font-size: 13px; margin-bottom: 32px; }
+    .step { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; text-align: right; }
+    .step-num { width: 32px; height: 32px; border-radius: 50%; background: #9784e2; color: white; font-weight: 900; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+    .step-text { font-size: 14px; line-height: 1.6; color: #c8d8e8; }
+    .step-text strong { color: #9784e2; }
+    .download-btn { display: block; width: 100%; padding: 14px; background: #9784e2; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin: 24px 0 12px; text-decoration: none; font-family: inherit; }
+    .download-btn:hover { background: #605C94; }
+    .note { font-size: 11px; color: #4a6070; line-height: 1.6; }
+    .divider { height: 1px; background: #1e2f42; margin: 24px 0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Aman<span>Guard</span></div>
+    <div class="subtitle">إضافة حماية المدفوعات | Payment Protection Extension</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">اضغط على زر التحميل أدناه لتنزيل ملفات الإضافة<br><strong>Click download to get the extension files</strong></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">افتح <strong>chrome://extensions</strong> في متصفحك وفعّل وضع المطور<br><strong>Open chrome://extensions and enable Developer Mode</strong></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">اضغط <strong>Load unpacked</strong> واختر المجلد الذي قمت بتنزيله<br><strong>Click Load unpacked and select the downloaded folder</strong></div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-text">سجّل دخولك في AmanGuard — ستتصل الإضافة تلقائياً<br><strong>Sign in to AmanGuard — extension connects automatically</strong></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <a href="/extension-download" class="download-btn" id="download-btn">
+      ⬇️ تحميل الإضافة | Download Extension
+    </a>
+    <p class="note">الإضافة مجانية وتعمل على متصفح Chrome وEdge<br>Free extension — works on Chrome and Edge</p>
+  </div>
+  <script>
+    document.getElementById('download-btn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/extension-download');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'amanguard-extension.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

@@ -1,12 +1,93 @@
 /**
  * خلفية الإضافة (Service Worker)
- * تعمل كوسيط دائم للاتصال بـ 
+ * تعمل كوسيط دائم للاتصال بـ
  *  API
- *  الخادم وتمرير الرسائل بين الإطارات 
+ *  الخادم وتمرير الرسائل بين الإطارات
  * (Iframes) لتجاوز قيود الـ CORS.
  */
+
+const AMANGUARD_API = "http://localhost:8080/api";
+
+// فكّ ترميز حمولة الـ JWT (base64url) لاستخراج بيانات المستخدم (الاسم/الدور).
+// أفضل جهد فقط — أي فشل يُرجِع null دون تسجيل أي شيء في الـ console.
+function decodeUserFromToken(token) {
+    try {
+        const part = token.split('.')[1];
+        // JWT يستخدم base64url؛ نحوّله إلى base64 قياسي قبل فكّ الترميز.
+        const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64));
+        return { name: payload.name, nameEn: payload.nameEn, role: payload.role };
+    } catch (e) {
+        return null;
+    }
+}
+
+// تخزين التوكن + بيانات المستخدم في chrome.storage.local (التوكن لا يُسجَّل أبداً).
+// نفضّل بيانات المستخدم المُمرَّرة مباشرةً من الصفحة (userJson) لتفادي مشاكل فكّ الـ JWT،
+// وإلا نفكّ حمولة التوكن كحل احتياطي.
+function storeToken(token, userJson) {
+    let amanguardUser = userJson || null;
+    if (!amanguardUser) {
+        const decoded = decodeUserFromToken(token);
+        amanguardUser = decoded ? JSON.stringify(decoded) : null;
+    }
+    chrome.storage.local.set({
+        amanguard_token: token,
+        amanguard_connected: true,
+        amanguard_user: amanguardUser
+    });
+}
+
+// قراءة التوكن المخزَّن (Promise).
+function getStoredToken() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(["amanguard_token"], (stored) => resolve(stored.amanguard_token || null));
+    });
+}
+
+// إبلاغ مركز عمليات الأمن (SOC) فوراً عند اكتشاف خطر عالٍ/حرج، وانتظار الرد
+// للحصول على رقم البلاغ. يفشل بصمت (يُرجِع null) إذا كان الخادم غير متاح.
+async function reportToAmanGuard(riskLevel, reasons, metadata, token) {
+    if (!token) return null;
+    if (riskLevel !== "Critical" && riskLevel !== "High") return null;
+
+    try {
+        const res = await fetch(`${AMANGUARD_API}/transactions/analyze`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                merchantName: (() => { try { return new URL(metadata.actionUrl).hostname; } catch { return metadata.actionUrl; } })(),
+                merchantUrl: metadata.actionUrl,
+                amount: 0,
+                currency: "SAR",
+                transactionType: "ONLINE_PURCHASE",
+                source: "EXTENSION",
+                riskLevel: riskLevel,
+                reasons: reasons
+            })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            return data.reportNumber ?? null;
+        }
+    } catch (e) { /* fail silently — never block the UI */ }
+    return null;
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    
+
+    // 0. استلام توكن الجلسة المُمرَّر من الصفحة عبر الـ content script
+    // (page → content → background). الـ background وحده يملك صلاحية chrome.storage.
+    // نفكّ حمولة الـ JWT لاستخراج بيانات المستخدم. التوكن لا يُسجَّل أبداً.
+    if (request.action === "STORE_TOKEN_FROM_PAGE") {
+        storeToken(request.token, request.user);
+        sendResponse({ success: true });
+        return true;
+    }
+
     // 1. معالجة طلب الفحص من الـ Content Script وإرساله للـ AI Engine
     if (request.action === "analyze_payment") {
         const API_URL = "http://127.0.0.1:8000/analyze-url";
@@ -15,26 +96,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             // إرسال الرابط وحالة اختطاف النطاق (Cross-Domain) للخادم
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 url: request.data.actionUrl,
-                is_cross_domain: request.data.isCrossDomain 
-            }) 
+                is_cross_domain: request.data.isCrossDomain
+            })
         })
         .then(response => response.json())
-        .then(data => {
+        .then(async (data) => {
             let risk_level = "Low";
             let reasons = [];
 
             // تقييم المخاطر إذا لم يكن الموقع ضمن القائمة البيضاء
             if (!data.is_whitelisted) {
-                
+
                 // التقييم الأول: اختطاف النماذج (Form Hijacking)
                 // إذا كان النموذج يرسل بيانات لموقع خارجي غير موثوق، فهو خطر حرج
                 if (data.is_cross_domain) {
                     risk_level = "Critical";
                     reasons.push("تحذير أمني خطير: هذا النموذج مخترق! بيانات بطاقتك تُرسل سراً إلى موقع خارجي غير معروف (" + data.domain + ").");
                 }
-                
+
                 // التقييم الثاني: عمر النطاق (Domain Age)
                 // المتاجر الجديدة جداً أو مجهولة المصدر تعتبر عالية الخطورة
                 if (data.is_suspicious_age && !data.is_cross_domain) {
@@ -45,17 +126,75 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         reasons.push(`تحذير: هذا المتجر تم إنشاؤه حديثاً جداً (عمره ${data.domain_age_days} يوم فقط). المتاجر الموثوقة عادة تكون أقدم من ذلك بكثير.`);
                     }
                 }
-                
+
                 // التقييم الثالث: الخداع البصري للروابط (Typosquatting via AI)
                 // اكتشاف المهاجمين الذين يستخدمون روابط شبيهة (مثل arnazon بدلاً من amazon)
                 if (data.ai_analysis && data.ai_analysis.is_typosquatting) {
-                    risk_level = "Critical"; 
+                    risk_level = "Critical";
                     reasons.push(`خداع بصري: ${data.ai_analysis.warning_message}`);
                 }
             }
 
+            // Rule 4: Typosquatting detection (client-side fast check)
+            const knownBrands = [
+                { brand: "amazon", variants: ["amaz0n", "arnazon", "amazoon", "amazon-secure"] },
+                { brand: "noon", variants: ["no0n", "nooon", "noon-sa", "noon-secure"] },
+                { brand: "paypal", variants: ["paypa1", "paypai", "paypal-secure", "paypa-l"] },
+                { brand: "stcpay", variants: ["stc-pay", "stcpay-secure", "stc-payment"] },
+                { brand: "rajhi", variants: ["alrajhi-secure", "rajhi-bank", "alrajhi-verify"] },
+                { brand: "snb", variants: ["snb-secure", "snb-verify", "saudination-bank"] },
+                { brand: "alinma", variants: ["alinma-secure", "alinma-verify"] },
+            ];
+
+            try {
+                const urlObj = new URL(request.data.actionUrl);
+                const hostname = urlObj.hostname.toLowerCase();
+
+                for (const { brand, variants } of knownBrands) {
+                    if (variants.some(v => hostname.includes(v))) {
+                        risk_level = "Critical";
+                        reasons.push(`خداع بصري: الموقع يتظاهر بأنه ${brand} — تحقق من الرابط بعناية!`);
+                        reasons.push(`Typosquatting: This site impersonates ${brand} — check the URL carefully!`);
+                    }
+                }
+            } catch(e) {}
+
+            // Rule 5: Suspicious TLD detection
+            const suspiciousTlds = [".ru", ".tk", ".xyz", ".pw", ".cc", ".top", ".work", ".click", ".link"];
+            try {
+                const hostname = new URL(request.data.actionUrl).hostname;
+                if (suspiciousTlds.some(tld => hostname.endsWith(tld))) {
+                    if (risk_level !== "Critical") risk_level = "High";
+                    reasons.push("نطاق مشبوه: امتداد النطاق غير موثوق ويُستخدم كثيراً في مواقع الاحتيال.");
+                    reasons.push("Suspicious TLD: This domain extension is commonly used in fraud sites.");
+                }
+            } catch(e) {}
+
+            // Rule 6: HTTP (not HTTPS) on payment page
+            try {
+                const protocol = new URL(request.data.actionUrl).protocol;
+                if (protocol === "http:" && !request.data.actionUrl.includes("localhost")) {
+                    if (risk_level === "Low") risk_level = "High";
+                    reasons.push("اتصال غير مشفر: هذا الموقع لا يستخدم HTTPS — بياناتك غير محمية!");
+                    reasons.push("Unencrypted connection: This site uses HTTP, not HTTPS — your data is exposed!");
+                }
+            } catch(e) {}
+
+            // حفظ آخر فحص محلياً ليعرضه الـ popup (لا يحتوي أي بيانات حسّاسة)
+            chrome.storage.local.set({
+                amanguard_last_scan: JSON.stringify({
+                    risk_level,
+                    domain: (() => { try { return new URL(request.data.actionUrl).hostname; } catch { return "—"; } })(),
+                    timestamp: Date.now()
+                })
+            });
+
+            // إبلاغ مركز عمليات الأمن فوراً عند الخطر والحصول على رقم البلاغ
+            const token = await getStoredToken();
+            const reportNumber = await reportToAmanGuard(risk_level, reasons, request.data, token);
+
             // إرسال النتيجة النهائية للـ Content Script ليعرض الواجهة المناسبة
-            sendResponse({ risk_level: risk_level, reasons: reasons });
+            sendResponse({ risk_level, reasons, reportNumber });
         })
         .catch(error => {
             console.error("[AmanGuard] API Error:", error);
@@ -70,7 +209,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // ==========================================
     // لا يمكن لـ Iframe التواصل مباشرة مع Top Frame في نطاقات مختلفة بسبب سياسات CORS
     // لذلك نستخدم الخلفية (Background) كجهاز توجيه (Router) يمرر الأوامر بينها
-    
+
     // عندما يطلب إطار فرعي إظهار الشاشة، نأمر الإطار الرئيسي بذلك لضمان تغطية الشاشة بالكامل
     if (request.action === "trigger_ui_in_top_frame") {
         chrome.tabs.sendMessage(sender.tab.id, {

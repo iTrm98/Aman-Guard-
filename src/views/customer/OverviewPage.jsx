@@ -1,5 +1,6 @@
 import PageHeader  from "../../components/layout/PageHeader";
 import AccountCard from "../../components/customer/AccountCard";
+import ExtensionStatus from "../../components/customer/ExtensionStatus";
 import { useApp } from "../../context/useApp";
 import { useRelativeTime } from "../../hooks/useRelativeTime";
 
@@ -58,6 +59,31 @@ export default function OverviewPage({ isMobile, onNavigate }) {
               <span style={{ fontSize:12, lineHeight:1.5, color:"var(--text-muted)" }}>{t(a.descKey)}</span>
             </button>
           ))}
+
+          {/* Browser extension: install prompt + live connection status */}
+          <div className="card" style={{ padding: isMobile ? 14 : 20, textAlign:"center" }}>
+            <div style={{ fontSize:36, marginBottom:12 }}>🛡️</div>
+            <h3 style={{ fontWeight:900, fontSize:15, color:"var(--text-primary)", marginBottom:8 }}>
+              {t("extension_title")}
+            </h3>
+            <p style={{ fontSize:13, color:"var(--text-muted)", marginBottom:12, lineHeight:1.6 }}>
+              {t("extension_desc")}
+            </p>
+            <ExtensionStatus />
+            <button
+              onClick={() => window.open('/extension/download.html', '_blank')}
+              className="btn-primary"
+              style={{ width:"100%", marginTop:12, justifyContent:"center" }}
+            >
+              ⬇️ {t("download_extension")}
+            </button>
+            <p style={{ fontSize:11, color:"var(--text-muted)", marginTop:8, lineHeight:1.5 }}>
+              {t("install_steps_title")}:
+              <br/>1. {t("install_step_2")}
+              <br/>2. {t("install_step_3")}
+              <br/>3. {t("install_step_4")}
+            </p>
+          </div>
         </div>
       </div>
 

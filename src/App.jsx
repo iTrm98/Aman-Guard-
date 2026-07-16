@@ -12,6 +12,21 @@ import { apiErrorMessage } from "./api/client";
 import { UNAUTHORIZED_PURCHASE_PATTERN_AR, BLOCKED_PURCHASE_PATTERN_AR } from "./i18n/fraudPatterns";
 import { useApp } from "./context/useApp";
 
+// Hand the current JWT (and cached user blob) to the AmanGuard browser
+// extension. There is no hardcoded extension id: we broadcast to the page with
+// window.postMessage (same-origin target), and the extension's content script
+// (injected into this page) relays it to its background service worker. If the
+// extension isn't installed, nothing listens and the message is simply ignored
+// — postMessage never throws. The token is never logged.
+function sendTokenToExtension(token) {
+  window.postMessage({
+    source: "AMANGUARD_WEB",
+    action: "SET_AMANGUARD_TOKEN",
+    token,
+    user: localStorage.getItem("amanguard_user"),
+  }, window.location.origin);
+}
+
 function AppShell({ isMobile }) {
   const { modal, closeModal, showModal, panel, closePanel, t, lang, currentUser } = useApp();
   // Role owns the view: officers get the SOC dashboard, customers the portal.
@@ -197,6 +212,15 @@ export default function App() {
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, []);
+
+  // Sync the JWT to the browser extension whenever a session becomes active —
+  // covers both a fresh login (isAuthenticated flips true after completeLogin
+  // has stored the token) and a reload that restored an existing session.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = localStorage.getItem("amanguard_token");
+    if (token) sendTokenToExtension(token);
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) return <LoginView isMobile={isMobile} />;
   return <AppShell isMobile={isMobile} />;

@@ -268,9 +268,27 @@ const T = {
   login_btn:          { ar: "دخول",                                en: "Sign In" },
   login_error:        { ar: "رقم الهوية أو كلمة المرور غير صحيحة", en: "Invalid national ID or password" },
   logging_in:         { ar: "جارٍ تسجيل الدخول...",                en: "Signing in..." },
+  session_expired:    { ar: "انتهت الجلسة، يرجى تسجيل الدخول مجدداً", en: "Session expired, please sign in again" },
+  session_refreshed:  { ar: "تم تجديد الجلسة تلقائياً",             en: "Session automatically renewed" },
   demo_credentials:   { ar: "بيانات تجريبية",                      en: "Demo Credentials" },
   demo_customer:      { ar: "عميل",                                en: "Customer" },
   demo_officer:       { ar: "موظف بنك",                            en: "Bank Officer" },
+
+  // ── Browser extension ────────────────────────────────────────────────────
+  extension_title:         { ar: "إضافة الحماية",                                    en: "Protection Extension" },
+  extension_desc:          { ar: "حمّل إضافة المتصفح لحماية مشترياتك الإلكترونية تلقائياً", en: "Install the browser extension to automatically protect your online purchases" },
+  download_extension:      { ar: "تحميل الإضافة",                                    en: "Download Extension" },
+  extension_connected:     { ar: "الإضافة متصلة ✓",                                  en: "Extension Connected ✓" },
+  extension_not_installed: { ar: "الإضافة غير مثبتة",                                en: "Extension Not Installed" },
+  extension_checking:      { ar: "جارٍ التحقق...",                                    en: "Checking..." },
+  install_steps_title:     { ar: "خطوات التثبيت",                                    en: "Installation Steps" },
+  install_step_2:          { ar: "افتح chrome://extensions في متصفحك",               en: "Open chrome://extensions in your browser" },
+  install_step_3:          { ar: "فعّل وضع المطور ثم اسحب مجلد extention/src",      en: "Enable Developer Mode then drag the extention/src folder" },
+  install_step_4:          { ar: "سجّل دخولك في أمان‌جارد لربط الإضافة تلقائياً", en: "Sign in to AmanGuard to connect the extension automatically" },
+  enable_extension:        { ar: "تفعيل الإضافة",                          en: "Enable Extension" },
+  disable_extension:       { ar: "تعطيل الإضافة",                          en: "Disable Extension" },
+  extension_enabled_desc:  { ar: "الإضافة تحمي مدفوعاتك تلقائياً",        en: "Extension is actively protecting your payments" },
+  extension_disabled_desc: { ar: "الإضافة معطّلة — مدفوعاتك غير محمية",  en: "Extension disabled — your payments are not protected" },
 
   // ── Customer portal pages ────────────────────────────────────────────────
   page_overview:              { ar: "الرئيسية",                      en: "Overview" },

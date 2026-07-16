@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -56,6 +57,31 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .badRequest()
+                .body(response);
+    }
+
+    // Invalid/expired JWT reaching a controller (e.g. POST /auth/refresh with a
+    // bad or expired refresh token). JwtServiceImpl.parseAndValidate and the
+    // refresh flow raise BadCredentialsException — surface it as 401 so the
+    // frontend client treats it as a dead session and returns to login, rather
+    // than a 400/500. (JWT failures inside the security filter chain never reach
+    // this advice; they're handled by the filter itself.)
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiErrorResponse> handleBadCredentials(
+            BadCredentialsException exception,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                "UNAUTHORIZED",
+                "انتهت الجلسة أو الرمز غير صالح",
+                request.getRequestURI(),
+                LocalDateTime.now(),
+                Map.of()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
                 .body(response);
     }
 
