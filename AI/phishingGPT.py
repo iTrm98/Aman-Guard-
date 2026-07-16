@@ -88,7 +88,7 @@ def handle_debug_output(data: dict | BaseModel, endpoint_name: str):
     print(f"--- [DEBUG] Saved to {filename} ---\n")
 
 
-TRUSTED_DOMAINS = {"amazon.com", "amazon.sa", "noon.com", "jarir.com", "extra.com", "apple.com"}
+TRUSTED_DOMAINS = {"amazon.com", "amazon.sa", "noon.com", "jarir.com", "extra.com", "apple.com","strip.com"}
 
 def extract_domain(url: str) -> str:
     if url.startswith("file://"): return "local_test_file"
