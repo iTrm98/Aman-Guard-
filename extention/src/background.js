@@ -6,7 +6,7 @@
  * (Iframes) لتجاوز قيود الـ CORS.
  */
 
-const AMANGUARD_API = "http://localhost:8080/api";
+const AMANGUARD_API = "http://localhost:8000/api";
 
 // فكّ ترميز حمولة الـ JWT (base64url) لاستخراج بيانات المستخدم (الاسم/الدور).
 // أفضل جهد فقط — أي فشل يُرجِع null دون تسجيل أي شيء في الـ console.

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from openai import OpenAI
+import tldextract 
 
 # ==========================================
 # 0. إعداد وضع التصحيح (Debug Mode)
@@ -65,6 +66,9 @@ class URLRequest(BaseModel):
     is_cross_domain: bool = False # الإضافة سترسل هذه المعلومة الآن
 
 
+class MessageInput(BaseModel):
+    message_text: str
+
 # ==========================================
 # 2. وظيفة التصحيح والوظائف المساعدة
 # ==========================================
@@ -88,44 +92,20 @@ def handle_debug_output(data: dict | BaseModel, endpoint_name: str):
     print(f"--- [DEBUG] Saved to {filename} ---\n")
 
 
-TRUSTED_DOMAINS = {"amazon.com", "amazon.sa", "noon.com", "jarir.com", "extra.com", "apple.com","strip.com"}
+TRUSTED_DOMAINS = {"amazon.com", "amazon.sa", "noon.com", "jarir.com", "extra.com", "apple.com","stripe.com"}
 
 def extract_domain(url: str) -> str:
-    if url.startswith("file://"): return "local_test_file"
-    if url.startswith("about:"): return "virtual_browser_frame" # [الحل الجذري 1]
+    if url.startswith("file://"): 
+        return "local_test_file"
+    if url.startswith("about:"): 
+        return "virtual_browser_frame"
     
-    if not url.startswith(("http://", "https://")):
-        url = "http://" + url
-    return urlparse(url).netloc.replace("www.", "")
-
-def get_domain_age(domain: str) -> int:
-    # الروابط المحلية والوهمية نعطيها عمر افتراضي آمن لتخطي WHOIS
-    if domain in ["local_test_file", "virtual_browser_frame", "localhost", "127.0.0.1"]:
-        return 90 
-        
-    try:
-        import whois
-        domain_info = None
-        if hasattr(whois, 'whois'):
-            domain_info = whois.whois(domain)
-        elif hasattr(whois, 'query'):
-            domain_info = whois.query(domain)
-        
-        if not domain_info: return -1
-            
-        creation_date = domain_info.creation_date
-        if isinstance(creation_date, list): creation_date = creation_date[0]
-        if isinstance(creation_date, str):
-            from dateutil import parser
-            creation_date = parser.parse(creation_date)
-            
-        if hasattr(creation_date, 'tzinfo') and creation_date.tzinfo is not None:
-            creation_date = creation_date.replace(tzinfo=None)
-            
-        return (datetime.now() - creation_date).days
-    except Exception as e:
-        print(f"WHOIS Warning for {domain}: {str(e)}")
-        return -1
+    extracted = tldextract.extract(url)
+    
+    if extracted.domain and extracted.suffix:
+        return f"{extracted.domain}.{extracted.suffix}"
+    
+    return extracted.domain
 
 # ==========================================
 # 3. مسارات الـ APIs
