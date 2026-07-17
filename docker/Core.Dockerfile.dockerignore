@@ -1,0 +1,17 @@
+# BuildKit per-Dockerfile ignore for Core.Dockerfile — OVERRIDES the repo-root
+# .dockerignore (which excludes backend/, written for the frontend-only image).
+# The monolith context needs BOTH the frontend sources and backend/.
+node_modules
+dist
+.git
+.env
+.env.*
+!.env.example
+.claude
+*.md
+docker
+AI
+backend/target
+backend/.mvn
+backend/mvnw
+backend/mvnw.cmd

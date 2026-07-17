@@ -1,0 +1,107 @@
+# AmanGuard — full-stack Docker deployment.
+#
+# Run from this folder:      docker compose up -d --build
+# or from the repo root:     docker compose -f docker/docker-compose.yml up -d --build
+#
+#   Frontend   → http://localhost:3000   nginx serves the SPA and proxies /api + /ws
+#                to the backend container, so the bundle uses a relative "/api"
+#                base URL — no CORS, and the app works from any host/IP.
+#   Backend    → http://localhost:8080/api   published because the browser
+#                extension calls http://localhost:8080/api directly.
+#   MySQL      → host port 3307 (containers use mysql:3306; 3307 avoids a clash
+#                with a local MySQL on 3306).
+#   AI engine  → deliberately NOT published: it is keyless/unauthenticated, so
+#                only the backend reaches it over the compose network.
+#
+# Secrets/overrides live in ./.env (copy .env.example — compose loads it
+# automatically). Without OPENAI_API_KEY the stack still works: /api/analyze
+# falls back to rule-based scoring.
+
+name: amanguard
+
+services:
+  mysql:
+    image: mysql:8.4
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-AmanGuardRoot@12345}
+      MYSQL_DATABASE: amanguard_db
+      MYSQL_USER: amanguard_user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-AmanGuard@12345}
+    ports:
+      - "${MYSQL_HOST_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  ai-engine:
+    build:
+      context: ../AI
+      dockerfile: ../docker/AI.Dockerfile
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    restart: unless-stopped
+    healthcheck:
+      # stdlib-only check — the slim image has no curl/wget.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Backend.Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy      # Flyway must find the DB up
+      ai-engine:
+        condition: service_started      # AI down is fine — /api/analyze falls back to rules
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/amanguard_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: amanguard_user
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-AmanGuard@12345}
+      AI_ENGINE_URL: http://ai-engine:8000
+      AMANGUARD_JWT_SECRET: ${AMANGUARD_JWT_SECRET:-demo-secret-change-this-before-production-please-use-64-characters-minimum}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      # No actuator in the pom and no unauthenticated GET endpoint, so a TCP
+      # check is the honest "Spring is accepting connections" signal.
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 45s
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Frontend.Dockerfile
+      args:
+        # "/api" = same-origin, proxied by nginx.conf. Only override if the
+        # SPA must call a backend on a different origin (then CORS applies).
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    depends_on:
+      backend:
+        condition: service_healthy      # nginx resolves "backend" at startup
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  mysql_data:

@@ -1,0 +1,8 @@
+# Keeps the backend build context (backend/) lean — only pom.xml + src are
+# COPYed, but excluding these avoids shipping a stale target/ to the daemon.
+target
+.mvn
+mvnw
+mvnw.cmd
+*.iml
+*.log

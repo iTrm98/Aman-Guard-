@@ -91,6 +91,20 @@ public class SecurityConfig {
                                 "/api/auth/**"
                         ).permitAll()
 
+                        // SPA static assets — only present in the monolith
+                        // Docker image (docker/Core.Dockerfile bakes the Vite
+                        // build into classpath:/static). Auth stays on /api/**.
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/",
+                                "/index.html",
+                                "/assets/**",
+                                "/extension-download",
+                                "/extension/**",
+                                "/favicon.svg",
+                                "/icons.svg"
+                        ).permitAll()
+
                         .requestMatchers(
                                 "/ws/**"
                         ).permitAll()

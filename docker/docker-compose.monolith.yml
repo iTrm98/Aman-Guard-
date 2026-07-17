@@ -1,0 +1,79 @@
+# AmanGuard — MONOLITH deployment: one "core" container serves both the SPA
+# and the API on port 8080 (frontend baked into the Spring Boot jar).
+#
+#   docker compose -f docker-compose.monolith.yml up -d --build
+#
+#   App (UI + API) → http://localhost:8080   (UI at /, API at /api)
+#   MySQL          → host port 3307
+#   AI engine      → not published (backend-only, same as the split stack)
+#
+# Run EITHER this OR docker-compose.yml — not both at once (they share host
+# ports 8080/3307). This project uses its own MySQL volume; data is separate
+# from the split stack's. Reads the same ./.env as the split stack.
+
+name: amanguard-mono
+
+services:
+  mysql:
+    image: mysql:8.4
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-AmanGuardRoot@12345}
+      MYSQL_DATABASE: amanguard_db
+      MYSQL_USER: amanguard_user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-AmanGuard@12345}
+    ports:
+      - "${MYSQL_HOST_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  ai-engine:
+    build:
+      context: ../AI
+      dockerfile: ../docker/AI.Dockerfile
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  core:
+    build:
+      context: ..
+      dockerfile: docker/Core.Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ai-engine:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/amanguard_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: amanguard_user
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-AmanGuard@12345}
+      AI_ENGINE_URL: http://ai-engine:8000
+      AMANGUARD_JWT_SECRET: ${AMANGUARD_JWT_SECRET:-demo-secret-change-this-before-production-please-use-64-characters-minimum}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      # GET / is the SPA index (permitted in SecurityConfig), so a real 200
+      # check is possible here — unlike the API-only backend image.
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 45s
+
+volumes:
+  mysql_data:
