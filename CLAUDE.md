@@ -758,21 +758,32 @@ source:"EXTENSION", riskLevel, reasons }`) that returns the backend's `reportNum
 silently (returns null, never blocks) when there's no token or the backend is down. The response to
 the content script is `{ risk_level, reasons, reportNumber }`.
 
-**Overlay (`content.js`).** `injectShadowUI` renders the branded modal (gradient header with the
-Aman**Guard** wordmark, connection dot, pulsing risk icon, an SVG risk-score gauge, bilingual
-title/message, reasons list, recommendation box, report-number line, and a footer with the logged-in
-user avatar/name). `updateShadowUI` maps risk level → score/color, fills the gauge, shows reasons
-(❌) + recommendation for High/Critical, shows the `reportNumber` when present, and reads
-`amanguard_user` / `amanguard_connected` from storage for the footer + connection line. Buttons:
-Cancel (stops the transaction), Proceed-at-own-risk (`triggerResumeAllFrames`), Full Analysis (opens
-`http://localhost:5173`), and Report (confirms the auto-report already sent to SOC). All existing
-iframe-broker / resume logic is unchanged.
+**Overlay (`content.js`).** The overlay UI now matches the **AmanGuard web-app brand system** — same
+colors (navy `#0d1b2a`, gold `#9784e2`, red/green), Tajawal font (loaded via a Google-Fonts `@import`
+inside the Shadow DOM), card/button/badge styling, and an SVG risk gauge with the same geometry as
+`RiskReport.jsx` (r=44). The overlay's full CSS lives in **one place** — the
+`AMANGUARD_OVERLAY_CSS` template constant in `content.js` (inlined into the closed Shadow DOM because
+a `<link>`/`chrome.runtime.getURL('overlay.css')` fails on third-party pages) — and
+`extention/src/overlay.css` is the **canonical copy that must stay byte-identical** to it.
+`injectShadowUI` renders the branded modal (navy-gradient header + Aman**Guard** wordmark, live
+connection dot, spinning shield while analyzing, bilingual title/message, risk badge, gauge, findings
+cards, recommendation box, report-number line, footer with the logged-in user avatar/name).
+`updateShadowUI` maps risk → score/color (≥80 red, ≥50 orange, low green), tints the modal's top
+accent bar per risk, renders findings (❌, `textContent` — never `innerHTML`) + recommendation for
+High/Critical, shows the `reportNumber` when present, and reads `amanguard_user` /
+`amanguard_connected` for the footer + connection line. Buttons use the web-app button classes
+(`ag-btn-danger` / `ag-btn-ghost` / `ag-btn-primary`): Cancel (stops the transaction; gold on the
+safe screen), Proceed-at-own-risk (`triggerResumeAllFrames`), plus Full-Analysis / Report text
+links. Safe transactions clear on a 10-second ghost-styled countdown. All existing iframe-broker /
+resume / cancel logic is unchanged.
 
 **Popup (`popup.html` + `popup.js`).** Toolbar popup (registered via manifest `action.default_popup`)
-showing connection status, protection status, the logged-in user (`amanguard_user`), and the last
-scan (`amanguard_last_scan`), with an "Open Portal" button (and an "SOC Dashboard" button for
-`BANK_OFFICER`). It reads only `chrome.storage.local` so it works whether or not the user is
-connected. Uses `chrome.tabs.create`, so the manifest adds the `tabs` permission.
+styled to match the AmanGuard **sidebar** (navy `#0d1b2a`, Tajawal, gold logo tile, user chip):
+connection status, protection status (green Active / red Disabled from `amanguard_enabled`), the
+logged-in user (`amanguard_user`), and the last scan (`amanguard_last_scan`), with an "Open Portal"
+button (and an "SOC Dashboard" button for `BANK_OFFICER`). It reads only `chrome.storage.local` so it
+works whether or not the user is connected. Uses `chrome.tabs.create`, so the manifest adds the
+`tabs` permission.
 
 **Download from the app (`/extension-download` ZIP).** The portal serves the extension itself — no
 GitHub link. `OverviewPage.jsx`'s download button opens `public/extension/download.html` (a static

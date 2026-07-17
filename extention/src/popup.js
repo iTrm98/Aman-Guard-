@@ -1,22 +1,39 @@
 document.addEventListener('DOMContentLoaded', () => {
   const PORTAL_URL = "http://localhost:5173";
 
-  // Load stored data
   chrome.storage.local.get([
     "amanguard_connected",
     "amanguard_user",
-    "amanguard_last_scan"
+    "amanguard_last_scan",
+    "amanguard_enabled"
   ], (stored) => {
 
     // Connection status
     const connDot  = document.getElementById('conn-dot');
     const connText = document.getElementById('conn-text');
     if (stored.amanguard_connected) {
-      connDot.className  = 'dot dot-green';
+      connDot.style.background = '#22c55e';
       connText.textContent = 'متصل | Connected';
+      connText.style.color = '#22c55e';
     } else {
-      connDot.className  = 'dot dot-red';
+      connDot.style.background = '#ef4444';
       connText.textContent = 'غير متصل | Not connected';
+      connText.style.color = '#8090a0';
+    }
+
+    // Protection enabled/disabled state (persists across refreshes via chrome.storage.local)
+    const isEnabled = stored.amanguard_enabled !== false; // default true
+    const protDot   = document.getElementById('protection-dot');
+    const protText  = document.getElementById('protection-text');
+    const protBadge = document.getElementById('protection-badge');
+    if (isEnabled) {
+      protDot.style.background = '#22c55e';
+      protText.textContent = 'فعّالة | Active';
+      protBadge.style.color = '#22c55e';
+    } else {
+      protDot.style.background = '#ef4444';
+      protText.textContent = 'معطّلة | Disabled';
+      protBadge.style.color = '#ef4444';
     }
 
     // User info
@@ -41,42 +58,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stored.amanguard_last_scan) {
       try {
         const scan = JSON.parse(stored.amanguard_last_scan);
-        const levelClass = {
-          Critical: 'level-critical',
-          High: 'level-high',
-          Low: 'level-low'
-        }[scan.risk_level] ?? 'level-low';
-
-        const icon = scan.risk_level === 'Critical' ? '🚫' :
-                     scan.risk_level === 'High' ? '⚠️' : '✅';
-
-        document.getElementById('last-scan-content').innerHTML = `
-          <div class="scan-result">
-            <span class="scan-icon">${icon}</span>
-            <div>
-              <div class="scan-level ${levelClass}">${scan.risk_level}</div>
-              <div class="scan-site">${scan.domain ?? '—'}</div>
-            </div>
-          </div>
-        `;
+        const color = scan.risk_level === 'Critical' ? '#ef4444'
+                    : scan.risk_level === 'High'     ? '#f97316'
+                    : '#22c55e';
+        const icon  = scan.risk_level === 'Critical' ? '🚫'
+                    : scan.risk_level === 'High'     ? '⚠️' : '✅';
+        const scanRow = document.createElement('div');
+        scanRow.style.cssText = 'display:flex;align-items:center;gap:10px;';
+        const iconEl = document.createElement('span');
+        iconEl.style.fontSize = '20px';
+        iconEl.textContent = icon;
+        const info = document.createElement('div');
+        const levelEl = document.createElement('div');
+        levelEl.style.cssText = 'font-size:13px;font-weight:700;color:' + color + ';';
+        levelEl.textContent = scan.risk_level || '—';
+        const siteEl = document.createElement('div');
+        siteEl.style.cssText = 'font-size:12px;color:#8090a0;margin-top:2px;';
+        siteEl.textContent = scan.domain || '—';
+        info.appendChild(levelEl);
+        info.appendChild(siteEl);
+        scanRow.appendChild(iconEl);
+        scanRow.appendChild(info);
+        const container = document.getElementById('last-scan-content');
+        container.innerHTML = '';
+        container.appendChild(scanRow);
       } catch(e) {}
-    }
-  });
-
-  // Protection enabled/disabled state (persists across refreshes via chrome.storage.local).
-  // NOTE: target the 2nd .status-badge (protection) — ':last-child' would match the
-  // connection badge too and querySelector would return that one instead.
-  chrome.storage.local.get(['amanguard_enabled'], (stored) => {
-    const isEnabled = stored.amanguard_enabled !== false; // default true
-    const protectionEl = document.querySelectorAll('.status-badge')[1];
-    if (protectionEl) {
-      if (isEnabled) {
-        protectionEl.innerHTML = '<span class="dot dot-green"></span><span>فعّالة | Active</span>';
-        protectionEl.style.color = '#22c55e';
-      } else {
-        protectionEl.innerHTML = '<span class="dot dot-red"></span><span>معطّلة | Disabled</span>';
-        protectionEl.style.color = '#ef4444';
-      }
     }
   });
 

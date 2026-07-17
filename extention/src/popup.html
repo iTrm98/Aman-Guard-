@@ -2,108 +2,77 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: 300px;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background: #0d1b2a;
-      color: #e0eaf5;
-    }
-    .header {
-      padding: 16px 20px;
-      border-bottom: 1px solid #1e2f42;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .logo { font-size: 20px; font-weight: 900; }
-    .logo span { color: #9784e2; }
-    .subtitle { font-size: 10px; color: #4a6070; margin-top: 2px; }
-    .status-section { padding: 16px 20px; border-bottom: 1px solid #1e2f42; }
-    .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .status-label { font-size: 12px; color: #8090a0; }
-    .status-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; }
-    .dot-green { background: #22c55e; }
-    .dot-red { background: #ef4444; }
-    .dot-gray { background: #9ca3af; }
-    .user-section { padding: 12px 20px; border-bottom: 1px solid #1e2f42; }
-    .user-row { display: flex; align-items: center; gap: 10px; }
-    .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#9784e2,#605C94); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-    .user-name { font-size: 13px; font-weight: 700; }
-    .user-role { font-size: 10px; color: #4a6070; }
-    .last-scan { padding: 14px 20px; border-bottom: 1px solid #1e2f42; }
-    .scan-title { font-size: 11px; color: #4a6070; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .scan-result { display: flex; align-items: center; gap: 8px; }
-    .scan-icon { font-size: 20px; }
-    .scan-site { font-size: 12px; color: #8090a0; margin-top: 2px; }
-    .scan-level { font-size: 13px; font-weight: 700; }
-    .level-critical { color: #ef4444; }
-    .level-high { color: #f97316; }
-    .level-low { color: #22c55e; }
-    .actions { padding: 14px 20px; display: flex; flex-direction: column; gap: 8px; }
-    .btn { padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; }
-    .btn-primary { background: #9784e2; color: white; }
-    .btn-primary:hover { background: #605C94; }
-    .btn-ghost { background: transparent; color: #8090a0; border: 1px solid #1e2f42; }
-    .btn-ghost:hover { background: #1e2f42; color: #e0eaf5; }
-    .footer { padding: 10px 20px; text-align: center; font-size: 10px; color: #304050; }
-    .no-scan { color: #4a6070; font-size: 12px; }
+    body { width: 300px; font-family: 'Tajawal', 'Segoe UI', Arial, sans-serif; background: #0d1b2a; color: #e0eaf5; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: #9784e255; border-radius: 99px; }
   </style>
 </head>
 <body>
-  <div class="header">
+
+  <!-- Header — identical to the sidebar logo area -->
+  <div style="padding:16px 20px; border-bottom:1px solid #1e2f42; display:flex; align-items:center; gap:10px;">
+    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#9784e2,#605C94);display:flex;align-items:center;justify-content:center;font-size:18px;">🛡️</div>
     <div>
-      <div class="logo">Aman<span>Guard</span></div>
-      <div class="subtitle">Financial Fraud Intelligence</div>
+      <div style="color:#fff;font-weight:900;font-size:17px;">Aman<span style="color:#9784e2;">Guard</span></div>
+      <div style="color:#304050;font-size:10px;">Financial Fraud Intelligence</div>
     </div>
   </div>
 
-  <div class="status-section">
-    <div class="status-row">
-      <span class="status-label">حالة الاتصال | Connection</span>
-      <div class="status-badge" id="connection-status">
-        <span class="dot dot-gray" id="conn-dot"></span>
-        <span id="conn-text">جارٍ التحقق...</span>
-      </div>
-    </div>
-    <div class="status-row">
-      <span class="status-label">الحماية | Protection</span>
-      <div class="status-badge" style="color:#22c55e;">
-        <span class="dot dot-green"></span>
-        <span>فعّالة | Active</span>
-      </div>
+  <!-- Connection row -->
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 20px;">
+    <span style="font-size:12px;color:#8090a0;">الاتصال | Connection</span>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;" id="conn-badge">
+      <span style="width:8px;height:8px;border-radius:50%;background:#9ca3af;" id="conn-dot"></span>
+      <span id="conn-text" style="color:#8090a0;">جارٍ التحقق...</span>
     </div>
   </div>
 
-  <div class="user-section" id="user-section" style="display:none;">
-    <div class="user-row">
-      <div class="avatar" id="user-avatar">؟</div>
+  <!-- Protection row -->
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 20px;border-bottom:1px solid #1e2f42;">
+    <span style="font-size:12px;color:#8090a0;">الحماية | Protection</span>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#22c55e;" id="protection-badge">
+      <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;" id="protection-dot"></span>
+      <span id="protection-text">فعّالة | Active</span>
+    </div>
+  </div>
+
+  <!-- User section — identical to the sidebar user chip -->
+  <div id="user-section" style="display:none;padding:12px 20px;border-bottom:1px solid #1e2f42;">
+    <div style="display:flex;align-items:center;gap:10px;background:#0a1620;padding:10px 12px;border-radius:12px;">
+      <div id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#9784e2,#605C94);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0;">؟</div>
       <div>
-        <div class="user-name" id="user-name">—</div>
-        <div class="user-role" id="user-role">—</div>
+        <div id="user-name" style="font-size:13px;font-weight:700;color:#c8d8e8;">—</div>
+        <div id="user-role" style="font-size:11px;color:#4a6070;">—</div>
       </div>
     </div>
   </div>
 
-  <div class="last-scan" id="last-scan-section">
-    <div class="scan-title">آخر فحص | Last Scan</div>
+  <!-- Last scan -->
+  <div style="padding:14px 20px;border-bottom:1px solid #1e2f42;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#304050;margin-bottom:10px;">آخر فحص | Last Scan</div>
     <div id="last-scan-content">
-      <p class="no-scan">لم يتم فحص أي موقع بعد | No sites scanned yet</p>
+      <p style="color:#4a6070;font-size:12px;">لم يتم فحص أي موقع بعد | No sites scanned yet</p>
     </div>
   </div>
 
-  <div class="actions">
-    <button class="btn btn-primary" id="open-portal">
+  <!-- Action buttons -->
+  <div style="padding:14px 20px;display:flex;flex-direction:column;gap:8px;">
+    <button id="open-portal" style="background:#9784e2;color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:background 0.15s;width:100%;">
       🛡️ فتح بوابة AmanGuard | Open Portal
     </button>
-    <button class="btn btn-ghost" id="open-soc" style="display:none;">
+    <button id="open-soc" style="display:none;background:transparent;color:#5a6a7a;border:1.5px solid #1e2f42;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;">
       📊 لوحة الأمن | SOC Dashboard
     </button>
   </div>
 
-  <div class="footer">AmanGuard v1.0 • Amad Hackathon 2026</div>
+  <!-- Footer -->
+  <div style="padding:10px 20px;text-align:center;font-size:10px;color:#304050;border-top:1px solid #1e2f42;">
+    AmanGuard v1.0 • Amad Hackathon 2026
+  </div>
 
   <script src="popup.js"></script>
 </body>

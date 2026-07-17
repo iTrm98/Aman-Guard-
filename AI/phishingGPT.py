@@ -64,6 +64,9 @@ class URLRequest(BaseModel):
     url: str
     is_cross_domain: bool = False # الإضافة سترسل هذه المعلومة الآن
 
+class MessageInput(BaseModel):
+    message_text: str
+
 
 # ==========================================
 # 2. وظيفة التصحيح والوظائف المساعدة
@@ -88,7 +91,7 @@ def handle_debug_output(data: dict | BaseModel, endpoint_name: str):
     print(f"--- [DEBUG] Saved to {filename} ---\n")
 
 
-TRUSTED_DOMAINS = {"amazon.com", "amazon.sa", "noon.com", "jarir.com", "extra.com", "apple.com"}
+TRUSTED_DOMAINS = {"amazon.com", "amazon.sa", "noon.com", "jarir.com", "extra.com", "apple.com" , "stripe.com"}
 
 def extract_domain(url: str) -> str:
     if url.startswith("file://"): return "local_test_file"
@@ -134,13 +137,13 @@ def get_domain_age(domain: str) -> int:
 @app.post("/analyze-url", response_model=URLAnalysisResponse)
 async def analyze_url(request: URLRequest):
     domain = extract_domain(request.url)
-    dayOfBrith = 30
-    
+
     is_whitelisted = domain in TRUSTED_DOMAINS
-    
-    domain_age = 90 if is_whitelisted else get_domain_age(domain)
-    is_suspicious_age = (domain_age < dayOfBrith)
-    
+
+    # Compute domain age
+    domain_age_days = get_domain_age(domain)
+    is_suspicious_age = 0 < domain_age_days < 180  # less than 6 months is suspicious
+
     ai_result = TyposquattingAnalysis(is_typosquatting=False, imitated_brand=None, warning_message="آمن")
 
     skip_ai_domains = ["local_test_file", "virtual_browser_frame"]
@@ -166,7 +169,7 @@ async def analyze_url(request: URLRequest):
     result = URLAnalysisResponse(
         domain=domain,
         is_whitelisted=is_whitelisted,
-        domain_age_days=domain_age,
+        domain_age_days=domain_age_days,
         is_suspicious_age=is_suspicious_age,
         is_cross_domain=request.is_cross_domain,
         ai_analysis=ai_result

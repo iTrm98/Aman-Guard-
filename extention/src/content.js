@@ -264,6 +264,163 @@ try {
 // ==========================================
 let shadowRoot = null;
 
+// AmanGuard brand system for the overlay — MUST stay identical to extention/src/overlay.css
+// (that file is the canonical copy). Same colors / Tajawal font / card-button-badge-gauge styling
+// as the web app (src/index.css).
+const AMANGUARD_OVERLAY_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
+
+/* AmanGuard payment-protection overlay — mirrors the web app brand system */
+#amanguard-payment-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(13, 27, 42, 0.88);
+  backdrop-filter: blur(8px);
+  z-index: 2147483647;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  direction: rtl;
+  font-family: 'Tajawal', 'Segoe UI', Arial, sans-serif;
+}
+#amanguard-payment-overlay *,
+#amanguard-payment-overlay *::before,
+#amanguard-payment-overlay *::after { box-sizing: border-box; }
+
+.amanguard-modal {
+  width: 90%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 20px;
+  border-top: 3px solid #9784e2;
+  box-shadow: 0 24px 64px rgba(13, 27, 42, 0.3);
+}
+
+/* Header — dark navy gradient like the AmanGuard sidebar */
+.ag-modal-header {
+  background: linear-gradient(135deg, #0d1b2a, #101e2e);
+  border-bottom: 3px solid #9784e2;
+  padding: 20px 24px;
+  text-align: center;
+}
+.ag-brand { font-size: 22px; font-weight: 900; color: #ffffff; letter-spacing: 0.02em; }
+.ag-brand span { color: #9784e2; }
+.ag-subtitle { font-size: 11px; color: #4a6070; margin-top: 4px; }
+
+.ag-modal-body { padding: 22px 24px; }
+
+/* Connection line — live dot like the web app */
+.ag-connection {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 11px; color: #8090a0; margin-bottom: 16px;
+}
+.ag-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: agPulseSoft 1.6s ease-in-out infinite; }
+.ag-live-dot.disconnected { background: #f59e0b; animation: none; }
+
+/* Risk icon */
+.ag-icon { font-size: 46px; text-align: center; margin-bottom: 10px; line-height: 1; }
+.ag-icon.pulse { animation: agPulse 1.4s ease-in-out infinite; }
+.ag-icon.spin  { animation: agSpin 1.1s linear infinite; display: inline-block; width: 100%; }
+
+.ag-title { font-size: 20px; font-weight: 900; color: #0d1b2a; text-align: center; margin-bottom: 4px; }
+.ag-title-en { font-size: 13px; color: #8090a0; text-align: center; margin-bottom: 14px; }
+
+/* Risk badge — matches the web app */
+.ag-risk-wrap { text-align: center; }
+.ag-risk-badge {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 4px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; margin-bottom: 14px;
+}
+.ag-risk-critical { background: #fdf0ef; color: #c0392b; border: 1px solid #f5c6c2; }
+.ag-risk-high     { background: #fef5ec; color: #d35400; border: 1px solid #fad7b0; }
+.ag-risk-low      { background: #eaf7ee; color: #1a7a4a; border: 1px solid #b2dfc0; }
+
+/* Risk gauge */
+.ag-gauge-container { display: flex; justify-content: center; margin: 4px 0 14px; }
+
+.ag-message { color: #5a6a7a; font-size: 14px; text-align: center; margin-bottom: 4px; }
+.ag-message-en { color: #8090a0; font-size: 12px; text-align: center; margin-bottom: 16px; }
+
+/* Findings — red-tinted cards like RiskReport.jsx */
+.ag-findings { margin-bottom: 14px; }
+.ag-finding {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px; border-radius: 10px;
+  background: rgba(192, 57, 43, 0.06);
+  border: 1px solid rgba(192, 57, 43, 0.15);
+  margin-bottom: 8px;
+}
+.ag-finding:last-child { margin-bottom: 0; }
+.ag-finding-x { color: #c0392b; flex-shrink: 0; font-size: 13px; line-height: 1.5; }
+.ag-finding-text { font-size: 13px; line-height: 1.5; color: #5a6a7a; }
+
+/* Recommendation */
+.ag-recommendation {
+  background: rgba(26, 90, 154, 0.07);
+  border-inline-start: 3px solid #1a5a9a;
+  border-radius: 0 10px 10px 0;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.ag-recommendation-title { font-size: 12px; font-weight: 700; color: #1a5a9a; margin-bottom: 3px; }
+.ag-recommendation-text { font-size: 12px; line-height: 1.6; color: #5a6a7a; }
+
+/* Report number */
+.ag-report-num { font-size: 11px; color: #8090a0; text-align: center; margin-bottom: 14px; }
+
+/* Buttons — mirror the web app button classes */
+.ag-buttons { display: flex; flex-direction: column; gap: 10px; }
+.ag-btn-primary {
+  background: #9784e2; color: #fff; border: none; border-radius: 10px;
+  padding: 12px 20px; font-weight: 700; font-size: 14px; cursor: pointer;
+  width: 100%; font-family: inherit; transition: background 0.15s;
+}
+.ag-btn-primary:hover { background: #605C94; }
+.ag-btn-danger {
+  background: #c0392b; color: #fff; border: none; border-radius: 10px;
+  padding: 12px 20px; font-weight: 700; font-size: 14px; cursor: pointer;
+  width: 100%; font-family: inherit; transition: background 0.15s;
+}
+.ag-btn-danger:hover { background: #a93226; }
+.ag-btn-ghost {
+  background: transparent; color: #5a6a7a; border: 1.5px solid #e1e5eb;
+  border-radius: 10px; padding: 11px 20px; font-weight: 600; font-size: 13px;
+  cursor: pointer; width: 100%; font-family: inherit; transition: all 0.15s;
+}
+.ag-btn-ghost:hover { background: #f5f7fa; }
+.ag-link {
+  background: none; border: none; color: #8090a0; font-size: 12px;
+  cursor: pointer; text-decoration: underline; font-family: inherit; padding: 4px;
+}
+.ag-link:hover { color: #5a6a7a; }
+
+/* Footer — like the web app topbar */
+.ag-modal-footer {
+  background: #f8f9fb; border-top: 1px solid #e1e5eb;
+  padding: 10px 24px; display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: #8090a0;
+}
+.ag-user-info { display: flex; align-items: center; gap: 7px; }
+.ag-avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: linear-gradient(135deg, #9784e2, #605C94);
+  color: #fff; font-weight: 700; font-size: 11px;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* Scrollbar — matches the web app */
+.amanguard-modal::-webkit-scrollbar { width: 5px; }
+.amanguard-modal::-webkit-scrollbar-thumb { background: #9784e255; border-radius: 99px; }
+.amanguard-modal::-webkit-scrollbar-thumb:hover { background: #9784e2; }
+
+@keyframes agPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.12); opacity: 0.85; } }
+@keyframes agPulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes agSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+`;
+
 function triggerAmanGuardFlow(metadata) {
     injectShadowUI(); // عرض الشاشة كحالة انتظار أولاً
     safeSendMessage({ action: "analyze_payment", data: metadata }, (response) => {
@@ -286,287 +443,14 @@ function injectShadowUI() {
     // تحميل الملف كثيراً ما يفشل على الصفحات التي ليست صفحة الإضافة نفسها (حتى مع
     // web_accessible_resources)، فالتضمين يزيل هذا الاعتماد ويضمن ظهور الأنماط دائماً.
     const style = document.createElement('style');
-    style.textContent = `
-/* AmanGuard Brand Colors */
-:root {
-  --ag-dark:    #0d1b2a;
-  --ag-navy:    #101e2e;
-  --ag-gold:    #9784e2;
-  --ag-gold-hover: #605C94;
-  --ag-red:     #c0392b;
-  --ag-green:   #1a7a4a;
-  --ag-surface: #ffffff;
-  --ag-muted:   #8090a0;
-}
-
-#amanguard-payment-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background: rgba(13, 27, 42, 0.92);
-  z-index: 2147483647;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-family: 'Tajawal', 'Segoe UI', Arial, sans-serif;
-  backdrop-filter: blur(8px);
-  direction: rtl;
-}
-
-.amanguard-modal {
-  background: var(--ag-surface);
-  width: 90%;
-  max-width: 480px;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(13,27,42,0.4);
-}
-
-.ag-modal-header {
-  background: linear-gradient(135deg, var(--ag-dark), var(--ag-navy));
-  padding: 24px;
-  text-align: center;
-  border-bottom: 3px solid var(--ag-gold);
-}
-
-.ag-brand {
-  font-size: 22px;
-  font-weight: 900;
-  color: #ffffff;
-  letter-spacing: 0.02em;
-  margin-bottom: 4px;
-}
-
-.ag-brand span { color: var(--ag-gold); }
-
-.ag-subtitle {
-  font-size: 12px;
-  color: var(--ag-muted);
-}
-
-.ag-modal-body {
-  padding: 24px;
-}
-
-.ag-icon {
-  font-size: 48px;
-  text-align: center;
-  margin-bottom: 12px;
-  animation: agPulse 1.5s infinite;
-}
-
-.ag-title {
-  font-size: 20px;
-  font-weight: 900;
-  color: var(--ag-dark);
-  text-align: center;
-  margin-bottom: 6px;
-}
-
-.ag-title-en {
-  font-size: 13px;
-  color: var(--ag-muted);
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-/* Risk Score Gauge */
-.ag-gauge-container {
-  display: flex;
-  justify-content: center;
-  margin: 16px 0;
-}
-
-/* Connection status */
-.ag-connection {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--ag-muted);
-  margin-bottom: 16px;
-}
-
-.ag-connection-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: #9ca3af;
-  flex-shrink: 0;
-}
-
-.ag-connection-dot.connected { background: #22c55e; }
-.ag-connection-dot.disconnected { background: #f59e0b; }
-
-/* Amount box */
-.ag-amount-box {
-  background: #fef9ec;
-  border: 1px solid #fde68a;
-  border-radius: 10px;
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.ag-amount-label { font-size: 13px; color: #555; }
-.ag-amount-value { font-size: 18px; font-weight: 900; color: var(--ag-red); }
-
-/* Reasons list */
-.ag-reasons {
-  background: #fdf0ef;
-  border: 1px solid #f5c6c2;
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 16px;
-  display: none;
-}
-
-.ag-reason-item {
-  display: flex;
-  gap: 8px;
-  font-size: 13px;
-  color: #7a2020;
-  margin-bottom: 8px;
-  line-height: 1.5;
-}
-
-.ag-reason-item:last-child { margin-bottom: 0; }
-
-/* Recommendation */
-.ag-recommendation {
-  background: #eaf3fb;
-  border-inline-start: 3px solid #1a5a9a;
-  border-radius: 0 8px 8px 0;
-  padding: 10px 14px;
-  font-size: 13px;
-  color: #1a3a5a;
-  margin-bottom: 16px;
-  display: none;
-}
-
-/* Buttons */
-.ag-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ag-btn-cancel {
-  background: var(--ag-gold);
-  color: white;
-  border: none;
-  padding: 14px;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.15s;
-}
-
-.ag-btn-cancel:hover { background: var(--ag-gold-hover); }
-
-.ag-btn-details {
-  background: #f1f5f9;
-  color: #334155;
-  border: 1px solid #cbd5e1;
-  padding: 11px;
-  border-radius: 10px;
-  font-size: 13px;
-  cursor: pointer;
-  font-family: inherit;
-  display: none;
-  transition: background 0.15s;
-}
-
-.ag-btn-details:hover { background: #e2e8f0; }
-
-.ag-btn-confirm {
-  background: transparent;
-  color: var(--ag-red);
-  border: 1px solid var(--ag-red);
-  padding: 11px;
-  border-radius: 10px;
-  font-size: 13px;
-  cursor: pointer;
-  font-family: inherit;
-  display: none;
-  transition: all 0.15s;
-}
-
-.ag-btn-confirm:hover { background: #fdf0ef; }
-
-/* Report button */
-.ag-btn-report {
-  background: transparent;
-  color: var(--ag-muted);
-  border: none;
-  padding: 8px;
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: center;
-  text-decoration: underline;
-  display: none;
-}
-
-/* Modal footer */
-.ag-modal-footer {
-  background: #f8f9fb;
-  border-top: 1px solid #edf0f4;
-  padding: 10px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.ag-footer-text {
-  font-size: 10px;
-  color: var(--ag-muted);
-}
-
-/* User info */
-.ag-user-info {
-  font-size: 11px;
-  color: var(--ag-muted);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.ag-user-avatar {
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  background: var(--ag-gold);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-@keyframes agPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
-}
-
-@keyframes agSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.ag-spinning { animation: agSpin 1s linear infinite; }
-`;
+    style.textContent = AMANGUARD_OVERLAY_CSS;
 
     const wrapper = document.createElement('div');
     wrapper.id = 'amanguard-payment-overlay';
     
     // القالب المبدئي (حالة الانتظار/التحليل) — بهوية أمان‌جارد الكاملة
     wrapper.innerHTML = `
-  <div class="amanguard-modal">
+  <div class="amanguard-modal" id="ag-modal">
 
     <!-- Header with AmanGuard branding -->
     <div class="ag-modal-header">
@@ -577,65 +461,62 @@ function injectShadowUI() {
     <div class="ag-modal-body">
       <!-- Connection status -->
       <div class="ag-connection">
-        <span class="ag-connection-dot" id="ag-conn-dot"></span>
+        <span class="ag-live-dot" id="ag-conn-dot"></span>
         <span id="ag-conn-text">جارٍ التحقق من الاتصال...</span>
       </div>
 
-      <!-- Risk icon -->
-      <div class="ag-icon" id="ag-loader">🛡️</div>
+      <!-- Risk icon (spinning shield while analyzing) -->
+      <div class="ag-icon spin" id="ag-loader">🛡️</div>
 
       <!-- Title -->
       <div class="ag-title" id="ag-title">اعتراض أمني آلي</div>
-      <div class="ag-title-en" id="ag-title-en">Automatic Security Interception</div>
+      <div class="ag-title-en" id="ag-title-en">AI Security Interception</div>
 
-      <!-- Risk gauge (SVG) -->
+      <!-- Risk badge -->
+      <div class="ag-risk-wrap">
+        <span class="ag-risk-badge" id="ag-risk-badge" style="display:none;"></span>
+      </div>
+
+      <!-- Risk gauge (SVG, identical geometry to RiskReport.jsx: r=44) -->
       <div class="ag-gauge-container" id="ag-gauge-container" style="display:none;">
-        <svg width="120" height="75" viewBox="0 0 120 75" id="ag-gauge-svg">
-          <path d="M 15 62 A 48 48 0 0 1 105 62" stroke="#edf0f4" stroke-width="8" stroke-linecap="round" fill="none"/>
-          <path d="M 15 62 A 48 48 0 0 1 105 62" stroke="#9784e2" stroke-width="8" stroke-linecap="round" fill="none"
+        <svg width="112" height="72" viewBox="0 0 112 72" fill="none">
+          <path d="M 12 58 A 44 44 0 0 1 100 58" stroke="#e1e5eb" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <path d="M 12 58 A 44 44 0 0 1 100 58" stroke="#9784e2" stroke-width="8" stroke-linecap="round" fill="none"
             id="ag-gauge-fill"
-            stroke-dasharray="150.796"
-            stroke-dashoffset="150.796"
-            style="transition: stroke-dashoffset 0.8s ease, stroke 0.5s ease"/>
-          <text x="60" y="58" text-anchor="middle" font-size="22" font-weight="900" fill="#0d1b2a" id="ag-score-text">0</text>
-          <text x="60" y="70" text-anchor="middle" font-size="9" fill="#8090a0">/100</text>
+            stroke-dasharray="138.23"
+            stroke-dashoffset="138.23"
+            style="transition: stroke-dashoffset 0.8s ease, stroke 0.4s ease"/>
+          <text x="56" y="54" text-anchor="middle" font-size="22" font-weight="900" fill="#0d1b2a" id="ag-score-text">0</text>
+          <text x="56" y="66" text-anchor="middle" font-size="9" fill="#8090a0">/ 100</text>
         </svg>
       </div>
 
-      <!-- Amount detected -->
-      <div class="ag-amount-box" id="ag-amount-box" style="display:none;">
-        <span class="ag-amount-label">المبلغ المكتشف | Amount</span>
-        <span class="ag-amount-value" id="ag-amount-value">—</span>
-      </div>
-
       <!-- Message -->
-      <p id="ag-message" style="color:#475569; font-size:14px; text-align:center; margin-bottom:6px;">يقوم النظام بتحليل أمان عملية الدفع...</p>
-      <p id="ag-message-en" style="font-size:12px; color:#8090a0; text-align:center; margin-bottom:16px;">Analyzing payment security, please wait...</p>
+      <p class="ag-message" id="ag-message">يقوم الذكاء الاصطناعي بتحليل أمان المعاملة...</p>
+      <p class="ag-message-en" id="ag-message-en">AI is analyzing transaction security...</p>
 
-      <!-- Reasons -->
-      <div class="ag-reasons" id="ag-reasons">
-        <ul id="ag-reasons-list" style="list-style:none; padding:0; margin:0;"></ul>
-      </div>
+      <!-- Findings -->
+      <div class="ag-findings" id="ag-findings" style="display:none;"></div>
 
       <!-- Recommendation -->
-      <div class="ag-recommendation" id="ag-recommendation"></div>
+      <div class="ag-recommendation" id="ag-recommendation" style="display:none;"></div>
 
-      <!-- Triggered fields / report number -->
-      <div id="ag-fields-info" style="display:none; font-size:11px; color:#8090a0; text-align:center; margin-bottom:12px;"></div>
+      <!-- Report number -->
+      <div class="ag-report-num" id="ag-report-num" style="display:none;"></div>
 
       <!-- Buttons -->
-      <div class="ag-buttons">
-        <button class="ag-btn-cancel" id="ag-cancel-btn">🛑 إلغاء العملية | Cancel Transaction</button>
-        <button class="ag-btn-report" id="ag-report-btn">الإبلاغ عن هذا الموقع | Report this site</button>
-        <button class="ag-btn-details" id="ag-details-btn">📊 التحليل الكامل | Full Analysis</button>
-        <button class="ag-btn-confirm" id="ag-confirm-btn">المتابعة على مسؤوليتي | Proceed at my own risk</button>
+      <div class="ag-buttons" id="ag-buttons">
+        <button class="ag-btn-danger" id="ag-cancel-btn">🛑 إلغاء العملية | Cancel</button>
+        <button class="ag-btn-ghost" id="ag-confirm-btn" style="display:none;">المتابعة على مسؤوليتي | Proceed anyway</button>
+        <button class="ag-link" id="ag-details-btn" style="display:none;">التحليل الكامل | Full Analysis</button>
+        <button class="ag-link" id="ag-report-btn" style="display:none;">الإبلاغ عن هذا الموقع | Report this site</button>
       </div>
     </div>
 
     <!-- Footer -->
     <div class="ag-modal-footer">
       <div class="ag-user-info">
-        <span class="ag-user-avatar" id="ag-user-avatar">؟</span>
+        <span class="ag-avatar" id="ag-user-avatar">؟</span>
         <span id="ag-user-name">غير متصل</span>
       </div>
       <div class="ag-footer-text">AmanGuard v1.0 • Amad Hackathon 2026</div>
@@ -646,6 +527,17 @@ function injectShadowUI() {
     shadowRoot.appendChild(style);
     shadowRoot.appendChild(wrapper);
     document.body.appendChild(host);
+
+    // Listen for storage changes in real time — the moment amanguard_connected
+    // is set from ANY tab, the overlay reflects it without waiting on a retry.
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local') return;
+        if (!shadowRoot) return;
+
+        if (changes.amanguard_connected || changes.amanguard_user) {
+            updateConnectionStatus(0);
+        }
+    });
 
     // برمجة زر الإلغاء
     shadowRoot.getElementById('ag-cancel-btn').addEventListener('click', () => {
@@ -662,14 +554,17 @@ function injectShadowUI() {
 function updateShadowUI(response) {
     if (!shadowRoot) return;
 
+    const modal = shadowRoot.getElementById('ag-modal');
     const loader = shadowRoot.getElementById('ag-loader');
     const title = shadowRoot.getElementById('ag-title');
     const titleEn = shadowRoot.getElementById('ag-title-en');
     const message = shadowRoot.getElementById('ag-message');
     const messageEn = shadowRoot.getElementById('ag-message-en');
-    const reasons = shadowRoot.getElementById('ag-reasons');
-    const reasonsList = shadowRoot.getElementById('ag-reasons-list');
+    const badge = shadowRoot.getElementById('ag-risk-badge');
+    const findings = shadowRoot.getElementById('ag-findings');
     const recommendation = shadowRoot.getElementById('ag-recommendation');
+    const reportNum = shadowRoot.getElementById('ag-report-num');
+    const cancelBtn = shadowRoot.getElementById('ag-cancel-btn');
     const confirmBtn = shadowRoot.getElementById('ag-confirm-btn');
     const detailsBtn = shadowRoot.getElementById('ag-details-btn');
     const reportBtn = shadowRoot.getElementById('ag-report-btn');
@@ -677,69 +572,105 @@ function updateShadowUI(response) {
     const gaugeFill = shadowRoot.getElementById('ag-gauge-fill');
     const scoreText = shadowRoot.getElementById('ag-score-text');
 
-    // Map risk level to score
-    const scoreMap = { "Critical": 95, "High": 82, "Low": 15 };
-    const score = response && response.risk_level ? (scoreMap[response.risk_level] ?? 50) : 0;
-    const colorMap = { "Critical": "#c0392b", "High": "#d35400", "Low": "#1a7a4a" };
-    const color = (response && colorMap[response.risk_level]) ?? "#9784e2";
+    // Stop the loading spinner.
+    loader.classList.remove('spin');
 
-    // Update gauge
+    // Risk level → score/color (gauge identical to RiskReport.jsx: ≥80 red, ≥50 orange, else green-safe)
+    const scoreMap = { "Critical": 95, "High": 82, "Low": 12 };
+    const level = response && response.risk_level;
+    const score = level ? (scoreMap[level] ?? 50) : 0;
+    const color = score >= 80 ? "#c0392b" : score >= 50 ? "#d35400" : "#1a7a4a";
+
+    // Gauge (r=44 → circumference = π·44)
     gaugeContainer.style.display = "flex";
-    const circumference = 150.796;
-    const offset = circumference * (1 - score / 100);
-    gaugeFill.style.strokeDashoffset = offset;
+    const C = Math.PI * 44;
+    gaugeFill.style.strokeDasharray = C;
+    gaugeFill.style.strokeDashoffset = C * (1 - score / 100);
     gaugeFill.style.stroke = color;
     scoreText.textContent = score;
     scoreText.style.fill = color;
 
+    // Render findings as red-tinted cards (textContent — never innerHTML — for the reason text).
+    function renderFindings(list) {
+        findings.style.display = "block";
+        findings.innerHTML = "";
+        (list || []).forEach((reason) => {
+            const item = document.createElement('div');
+            item.className = 'ag-finding';
+            const x = document.createElement('span');
+            x.className = 'ag-finding-x';
+            x.textContent = '❌';
+            const txt = document.createElement('span');
+            txt.className = 'ag-finding-text';
+            txt.textContent = reason;
+            item.appendChild(x);
+            item.appendChild(txt);
+            findings.appendChild(item);
+        });
+    }
+
     if (!response || response.error) {
+        modal.style.borderTopColor = "#d35400";
         loader.textContent = "⚠️";
         title.textContent = "تعذّر الفحص";
         titleEn.textContent = "Scan Failed";
         message.textContent = "تعذر الاتصال بخادم AmanGuard.";
-        messageEn.textContent = "Could not connect to AmanGuard server.";
+        messageEn.textContent = "Could not connect to the AmanGuard server.";
+        gaugeContainer.style.display = "none";
+        cancelBtn.className = "ag-btn-danger";
         confirmBtn.style.display = "block";
 
-    } else if (response.risk_level === "High" || response.risk_level === "Critical") {
-        loader.textContent = response.risk_level === "Critical" ? "🚫" : "⚠️";
-        title.textContent = response.risk_level === "Critical" ? "بوابة دفع مخترقة!" : "موقع مشبوه!";
-        titleEn.textContent = response.risk_level === "Critical" ? "Compromised Payment Gateway!" : "Suspicious Site!";
+    } else if (level === "High" || level === "Critical") {
+        modal.style.borderTopColor = "#c0392b";
+        loader.textContent = level === "Critical" ? "🚫" : "⚠️";
+        if (level === "Critical") loader.classList.add('pulse');
+        title.textContent = level === "Critical" ? "بوابة دفع مخترقة!" : "موقع مشبوه!";
+        titleEn.textContent = level === "Critical" ? "Compromised Payment Gateway!" : "Suspicious Site!";
         title.style.color = color;
         message.textContent = "تم إيقاف العملية لحماية بياناتك المالية.";
         messageEn.textContent = "Transaction stopped to protect your financial data.";
 
-        // Show reasons
-        reasons.style.display = "block";
-        response.reasons.forEach(reason => {
-            const li = document.createElement('li');
-            li.className = 'ag-reason-item';
-            li.innerHTML = `<span>❌</span><span>${reason}</span>`;
-            reasonsList.appendChild(li);
-        });
+        badge.className = "ag-risk-badge " + (level === "Critical" ? "ag-risk-critical" : "ag-risk-high");
+        badge.textContent = level === "Critical" ? "خطر حرج | Critical" : "مشبوه | High";
+        badge.style.display = "inline-flex";
 
-        // Show recommendation
+        renderFindings(response.reasons);
+
         recommendation.style.display = "block";
-        recommendation.innerHTML = `<strong>توصية النظام:</strong> لا تُكمل هذه العملية ولا تُدخل بيانات بطاقتك.<br><strong>Recommendation:</strong> Do not proceed. Do not enter your card details.`;
+        recommendation.innerHTML =
+            '<div class="ag-recommendation-title">توصية النظام | Recommendation</div>' +
+            '<div class="ag-recommendation-text">لا تُكمل هذه العملية ولا تُدخل بيانات بطاقتك. Do not proceed or enter your card details.</div>';
 
-        detailsBtn.style.display = "block";
+        cancelBtn.className = "ag-btn-danger";
+        cancelBtn.textContent = "🛑 إلغاء العملية | Cancel Transaction";
+        confirmBtn.className = "ag-btn-ghost";
         confirmBtn.style.display = "block";
+        detailsBtn.style.display = "block";
         reportBtn.style.display = "block";
 
     } else {
+        modal.style.borderTopColor = "#1a7a4a";
         loader.textContent = "✅";
         title.textContent = "عملية آمنة";
         titleEn.textContent = "Safe Transaction";
         title.style.color = "#1a7a4a";
         message.textContent = "تم التحقق من بوابة الدفع. سيتم المتابعة تلقائياً...";
         messageEn.textContent = "Payment gateway verified. Proceeding automatically...";
-        // Show countdown for 10 seconds with a skip button
+
+        badge.className = "ag-risk-badge ag-risk-low";
+        badge.textContent = "آمن | Safe";
+        badge.style.display = "inline-flex";
+
+        // Cancel becomes the gold primary button on the safe screen.
+        cancelBtn.className = "ag-btn-primary";
+        cancelBtn.textContent = "🛑 إلغاء العملية | Cancel";
+
+        // 10-second countdown with a ghost "skip" button.
         let countdown = 10;
-        const cancelBtn = shadowRoot.getElementById('ag-cancel-btn');
         const skipBtn = document.createElement('button');
-        skipBtn.className = 'ag-btn-details';
-        skipBtn.style.display = 'block';
+        skipBtn.className = 'ag-btn-ghost';
         skipBtn.textContent = `متابعة الآن | Proceed Now (${countdown}s)`;
-        shadowRoot.querySelector('.ag-buttons').insertBefore(skipBtn, cancelBtn);
+        shadowRoot.getElementById('ag-buttons').insertBefore(skipBtn, cancelBtn);
 
         skipBtn.addEventListener('click', () => {
           clearInterval(timer);
@@ -758,9 +689,8 @@ function updateShadowUI(response) {
 
     // رقم البلاغ (إن وُجد): يظهر أن الحالة سُجّلت في مركز عمليات الأمن
     if (response && response.reportNumber) {
-        const fieldsInfo = shadowRoot.getElementById('ag-fields-info');
-        fieldsInfo.style.display = "block";
-        fieldsInfo.textContent = `رقم البلاغ: #${response.reportNumber} | Report: #${response.reportNumber}`;
+        reportNum.style.display = "block";
+        reportNum.textContent = `رقم البلاغ: #${response.reportNumber} | Report: #${response.reportNumber}`;
     }
 
     // برمجة الأزرار (متابعة على المسؤولية / التحليل الكامل / الإبلاغ)
@@ -775,28 +705,38 @@ function updateShadowUI(response) {
         alert("تم إبلاغ فريق أمان‌جارد عن هذا الموقع.\nThis site has been reported to the AmanGuard security team.");
     });
 
-    // Load user info from storage
-    chrome.storage.local.get(["amanguard_user"], (stored) => {
-        const userAvatar = shadowRoot.getElementById('ag-user-avatar');
-        const userName = shadowRoot.getElementById('ag-user-name');
-        if (stored.amanguard_user && userAvatar && userName) {
-            try {
-                const user = JSON.parse(stored.amanguard_user);
-                const name = user.name || user.nameEn || "مستخدم";
-                userAvatar.textContent = name.charAt(0);
-                userName.textContent = name;
-            } catch(e) {}
-        }
-    });
+    updateConnectionStatus(0);
+    setTimeout(() => updateConnectionStatus(0), 500);
+    setTimeout(() => updateConnectionStatus(0), 1500);
+    setTimeout(() => updateConnectionStatus(0), 3000);
+}
 
-    // Connection status
-    chrome.storage.local.get(["amanguard_connected"], (stored) => {
-        const dot = shadowRoot.getElementById('ag-conn-dot');
-        const text = shadowRoot.getElementById('ag-conn-text');
+// Connection status + user info — read at module scope so both the overlay and
+// the storage listener in injectShadowUI() can refresh it. Retries for up to
+// 10s in case the token is still arriving from the web app.
+function updateConnectionStatus(attempt = 0) {
+    chrome.storage.local.get(["amanguard_connected", "amanguard_user"], (stored) => {
+        const dot = shadowRoot?.getElementById('ag-conn-dot');
+        const text = shadowRoot?.getElementById('ag-conn-text');
+        const userAvatar = shadowRoot?.getElementById('ag-user-avatar');
+        const userName = shadowRoot?.getElementById('ag-user-name');
         if (!dot || !text) return;
+
         if (stored.amanguard_connected) {
+            dot.classList.remove('disconnected');
             dot.classList.add('connected');
             text.textContent = 'متصل بـ AmanGuard ✓ | Connected';
+
+            if (stored.amanguard_user && userAvatar && userName) {
+                try {
+                    const user = JSON.parse(stored.amanguard_user);
+                    const name = user.name || user.nameEn || "مستخدم";
+                    userAvatar.textContent = name.charAt(0);
+                    userName.textContent = name;
+                } catch(e) {}
+            }
+        } else if (attempt < 10) {
+            setTimeout(() => updateConnectionStatus(attempt + 1), 1000);
         } else {
             dot.classList.add('disconnected');
             text.textContent = 'غير متصل | Not connected';
