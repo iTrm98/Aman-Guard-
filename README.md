@@ -353,14 +353,10 @@ cd backend && ./mvnw test        # Mac/Linux
 - **No sensitive content in logs** — analyzed messages and API keys never appear in logs; only metadata (user ID, text length) is recorded
 
 
-## Team — فريق ELIZA
+## Team
 
-Built for the **Amad FinTech Hackathon (2nd edition)** — Tuwaiq Academy × Alinma Bank, Riyadh, July 2026.
-
-| Member | 
-|---|---|
-| Nawaf Al-Otaibi ([@nwafh511](https://github.com/nwafh511))  | 
-| Turki Al-Sufyani ([@iTrm98](https://github.com/iTrm98)) | 
-| Mohammed Al-Zahrani ([@ep2wq](https://github.com/ep2wq))  | 
-| Ahmed Alsaedi ([@Hinamu18](https://github.com/Hinamu18))| 
-| Azzam Al-Adli ([@Azzam-coding](https://github.com/Azzam-coding)) | 
+- Nawaf Al-Otaibi ([@nwafh511](https://github.com/nwafh511))
+- Turki Al-Sufyani ([@iTrm98](https://github.com/iTrm98))
+- Mohammed Al-Zahrani ([@ep2wq](https://github.com/ep2wq))
+- Ahmed Alsaedi ([@Hinamu18](https://github.com/Hinamu18))
+- Azzam Al-Adli ([@Azzam-coding](https://github.com/Azzam-coding))
