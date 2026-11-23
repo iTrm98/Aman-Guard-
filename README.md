@@ -351,3 +351,16 @@ cd backend && ./mvnw test        # Mac/Linux
 - **Rate limiting** — per-user/per-IP quotas guard against automated abuse
 - **Data isolation** — account data and notifications are scoped to the authenticated user
 - **No sensitive content in logs** — analyzed messages and API keys never appear in logs; only metadata (user ID, text length) is recorded
+
+
+## Team — فريق ELIZA
+
+Built for the **Amad FinTech Hackathon (2nd edition)** — Tuwaiq Academy × Alinma Bank, Riyadh, July 2026.
+
+| Member | Role |
+|---|---|
+| Nawaf Al-Otaibi ([@nwafh511](https://github.com/nwafh511)) | Technical Lead & Idea Owner — concept, MVP scope, tech stack, task distribution, feature design |
+| Turki Al-Sufyani ([@iTrm98](https://github.com/iTrm98)) | Repository Owner, Integration & Branding |
+| Mohammed Al-Zahrani ([@ep2wq](https://github.com/ep2wq)) | Frontend & Integration Developer — React app, API integration, audit log, Docker |
+| Ahmed Alsaedi ([@Hinamu18](https://github.com/Hinamu18)) | AI Engine & Browser Extension Developer — FastAPI + GPT-4o-mini, Chrome extension |
+| Azzam Al-Adli ([@Azzam-coding](https://github.com/Azzam-coding)) | Backend Developer — Spring Boot services, analytics, audit |
