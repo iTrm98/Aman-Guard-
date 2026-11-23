@@ -30,3 +30,7 @@ dist-ssr
 backend/target/
 
 AI/myenv
+.venv/
+venv/
+__pycache__/
+*.pyc
