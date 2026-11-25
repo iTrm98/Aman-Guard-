@@ -352,6 +352,7 @@ cd backend && ./mvnw test        # Mac/Linux
 - **Data isolation** — account data and notifications are scoped to the authenticated user
 - **No sensitive content in logs** — analyzed messages and API keys never appear in logs; only metadata (user ID, text length) is recorded
 
+---
 
 ## Team
 
